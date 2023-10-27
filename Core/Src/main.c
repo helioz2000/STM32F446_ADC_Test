@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "global.h"
+#include "cmd.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,9 +48,10 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint8_t StartupMsg[] = "Welcome\r\n";
-uint16_t rxCount = 0;
+uint16_t rx_count = 0;
 uint8_t rx_byte;
 uint8_t rx_buff[20];
+uint8_t rx_cmd_ready = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,13 +134,14 @@ int main(void)
       /* USER CODE END WHILE */
 
       /* USER CODE BEGIN 3 */
-	  HAL_GPIO_TogglePin (LED2_PORT, LED2_PIN);
-	  HAL_Delay (500);
-	  if (rxCount > 0) {
-		  rx_buff[rxCount-1] = 0;	// set end of string
-		  printf("rx[%d] = <%s>\r\n", rxCount, rx_buff);
-		  rxCount = 0;
+	  //HAL_GPIO_TogglePin (LED2_PORT, LED2_PIN);
+	  //HAL_Delay (500);
+	  if (rx_cmd_ready) {
+		  CMD_Handler(rx_buff);
+		  rx_count = 0;
+		  rx_cmd_ready = 0;
 	  }
+
   }
   /* USER CODE END 3 */
 }
@@ -316,12 +319,20 @@ static void MX_GPIO_Init(void)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if (rxCount >= sizeof(rx_buff)) {
-		rxCount = 0;		// wrap back to start
+	if (rx_count >= sizeof(rx_buff)) {
+		rx_count = 0;		// wrap back to start
 	}
 	if ( HAL_UART_Receive_IT(&huart2, &rx_byte, 1) == HAL_UART_ERROR_NONE) {
-		rx_buff[rxCount++] = rx_byte;
-	} // else { x_error_count++; } // this should never happen
+		// check for End of input (CR or LF)
+		if ( (rx_byte != 0x10) && (rx_byte !=  0x0D) ) {
+			rx_buff[rx_count++] = rx_byte;
+		} else { // CR or LF detected
+			if (rx_count != 0) {	// a CR or LF without any preceeding chars gets ignored
+				rx_cmd_ready = 1;
+				rx_buff[rx_count++] = 0;	// end of string
+			}
+		}
+	} // else { rx_error_count++; } // this should never happen
 }
 
 /* USER CODE END 4 */
