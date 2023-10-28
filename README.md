@@ -26,6 +26,20 @@ The test board needed ARR 2286 to achieve 25us (91.45MHz)
 
 ADC measurement every 25us allows for 800 measurements per 20ms (one 50Hz cycle) providing a reading better than 0.5 degrees of phase. 
 
+#ADC usage
+PCLK2 (90MHz) / 8 = 11.25 Mhz ADC clock = 88.88ns
 
+| time | purpose |
+| --- | --- |
+| 15 | CH0 Sample |
+| 15 | CH0 Conversion |
+| 15 | CH1 Sample |
+| 15 | CH1 Conversion |
+| **60** | **Total time** |
+60 cycles = 5.3us = time to sample 2 channels on a single ADC.
+
+In this example ADC1 and ADC2 are used to sample simultaneously resulting in a total of **4 channels** sampled every **5.3us**
+
+**Note:** the ADC is capable of much faster sampling but to transfer the data to memory takes time and can result in an overrun error it the next conversion is started before the data is read. 
 
 

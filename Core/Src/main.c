@@ -33,7 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define ADC_BUF_SIZE 4U		// number of channels x 2
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -42,23 +42,42 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc2;
+DMA_HandleTypeDef hdma_adc1;
+DMA_HandleTypeDef hdma_adc2;
+
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t StartupMsg[] = "Welcome\r\n";
-uint16_t rx_count = 0;
-uint8_t rx_byte;
-uint8_t rx_buff[20];
-uint8_t rx_cmd_ready = 0;
+uint8_t startup_msg[] = "Startup Success\r\n";
+__IO uint16_t rx_count = 0;
+__IO uint8_t rx_byte;
+__IO uint8_t rx_buff[20];
+__IO uint8_t rx_cmd_ready = 0;
+
+uint8_t adc_conv_request = 0;
+__IO uint8_t adc1_conv_done = 0;
+__IO uint8_t adc2_conv_done = 0;
+uint8_t adc1_conv_count_last = 0;
+uint8_t adc2_conv_count_last = 0;
+
+__IO uint16_t adc1_raw[ADC_BUF_SIZE];		// written by DMA
+__IO uint16_t adc2_raw[ADC_BUF_SIZE];		// written by DMA
+
+//uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_ADC2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /** redirect all printf output to UART **/
@@ -110,19 +129,25 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  MX_ADC1_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
 
-  // Start UART receive via interrupt
-  HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
-  // Transmit startup message
-  HAL_UART_Transmit(&huart2, StartupMsg, sizeof(StartupMsg), 1000);
-
-  // Start ADC trigger timer
+  // Start Timer for ADC readings
   if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK) {
-     /* Starting Error */
-     Error_Handler();
+    Error_Handler();
+  }
+
+  // Start UART receive via interrupt
+  if (HAL_UART_Receive_IT(&huart2, &rx_byte, 1) != HAL_OK) {
+    Error_Handler();
+  }
+  // Startup success message
+   if (HAL_UART_Transmit(&huart2, startup_msg, sizeof(startup_msg), 1000) != HAL_OK) {
+    Error_Handler();
   }
 
   /* USER CODE END 2 */
@@ -131,17 +156,50 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-      /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-      /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
+
 	  //HAL_GPIO_TogglePin (LED2_PORT, LED2_PIN);
-	  //HAL_Delay (500);
+
+	  // Handle UART communication
 	  if (rx_cmd_ready) {
 		  CMD_Handler(rx_buff);
 		  rx_count = 0;
 		  rx_cmd_ready = 0;
 	  }
+	  if (adc_conv_request) {
+		  adc_conv_request = 0;
+		  //HAL_ADC_Start_IT (&hadc1);
+		  for (int i=0; i<ADC_BUF_SIZE; i++) {
+			adc1_raw[i]= 9999;
+		    adc2_raw[i]= 9999;
+		  }
+		  //if (HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t*)adc_raw, ADC_BUF_SIZE) != HAL_OK) {
+		  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc1_raw[0], 4) != HAL_OK) {
+			printf("Error starting ADC1 DMA\r\n");
+		  }
+		  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)&adc2_raw[0], 4) != HAL_OK) {
+		  	printf("Error starting ADC2 DMA\r\n");
+		  }
+	  }
 
+	  if (adc1_conv_done) {
+		  if (adc1_conv_done == 1) {
+			  printf("ADC1: %u %u\r\n",adc1_raw[0],adc1_raw[1]);
+		  } else {
+  			  printf("ADC1: %u %u\r\n",adc1_raw[2],adc1_raw[3]);
+		  }
+		  adc1_conv_done = 0;
+	  }
+	  if (adc2_conv_done) {
+		  if (adc2_conv_done == 1) {
+			  printf("ADC2: %u %u\r\n",adc2_raw[0],adc2_raw[1]);
+		  } else {
+			  printf("ADC2: %u %u\r\n",adc2_raw[2],adc2_raw[3]);
+		  }
+		  adc2_conv_done = 0;
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -198,6 +256,128 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV8;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_10;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief ADC2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC2_Init(void)
+{
+
+  /* USER CODE BEGIN ADC2_Init 0 */
+
+  /* USER CODE END ADC2_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC2_Init 1 */
+
+  /* USER CODE END ADC2_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc2.Instance = ADC2;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV8;
+  hadc2.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc2.Init.ScanConvMode = ENABLE;
+  hadc2.Init.ContinuousConvMode = DISABLE;
+  hadc2.Init.DiscontinuousConvMode = DISABLE;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc2.Init.NbrOfConversion = 2;
+  hadc2.Init.DMAContinuousRequests = DISABLE;
+  hadc2.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+  if (HAL_ADC_Init(&hadc2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_11;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC2_Init 2 */
+
+  /* USER CODE END ADC2_Init 2 */
+
 }
 
 /**
@@ -279,6 +459,25 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream2_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -317,17 +516,70 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+// ADC conversion is complete
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
+	//if (adc_read_idx > 1) { adc_read_idx = 0; }
+	//adc_raw[adc_read_idx++] = HAL_ADC_GetValue(&hadc1);
+	if (hadc == &hadc1) {
+		adc1_conv_done = 2;
+	} else {
+		adc2_conv_done = 2;
+	}
+}
+
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc)
+{
+	if (hadc == &hadc1) {
+		adc1_conv_done = 1;
+	} else {
+		adc2_conv_done = 1;
+	}
+}
+
+// ADC errors
+void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
+{
+	int adc_num;
+	if (hadc == &hadc1) {
+	  adc_num = 1;
+	} else {
+	  adc_num = 2;
+	}
+	switch (hadc->ErrorCode) {
+	case HAL_ADC_ERROR_NONE:
+		printf("ADC%d No Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
+		break;
+	case HAL_ADC_ERROR_INTERNAL:
+		printf("ADC%d Internal Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
+		break;
+	case HAL_ADC_ERROR_OVR:
+		printf("ADC%d Overrun Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
+		break;
+	case HAL_ADC_ERROR_DMA:
+		printf("ADC%d DMA Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
+		break;
+#if (USE_HAL_ADC_REGISTER_CALLBACKS == 1)
+	case HAL_ADC_ERROR_INVALID_CALLBACK:
+		printf("ADC%d Callback Error (0x%08lx)  [%d]\r\n", adc_num, hadc->ErrorCode);
+		break;
+#endif /* USE_HAL_ADC_REGISTER_CALLBACKS */
+	default:
+		printf("ADC Unknown Error: 0x%08lx\r\n", hadc->ErrorCode);
+	}
+}
+
+// UART has received
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if (rx_count >= sizeof(rx_buff)) {
 		rx_count = 0;		// wrap back to start
 	}
 	if ( HAL_UART_Receive_IT(&huart2, &rx_byte, 1) == HAL_UART_ERROR_NONE) {
 		// check for End of input (CR or LF)
-		if ( (rx_byte != 0x10) && (rx_byte !=  0x0D) ) {
+		if ( (rx_byte != 0x0A) && (rx_byte !=  0x0D) ) {
 			rx_buff[rx_count++] = rx_byte;
 		} else { // CR or LF detected
-			if (rx_count != 0) {	// a CR or LF without any preceeding chars gets ignored
+			if (rx_count != 0) {	// a CR or LF without any pre-ceeding chars gets ignored
 				rx_cmd_ready = 1;
 				rx_buff[rx_count++] = 0;	// end of string
 			}
@@ -343,14 +595,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   */
 void Error_Handler(void)
 {
-    /* USER CODE BEGIN Error_Handler_Debug */
+  /* USER CODE BEGIN Error_Handler_Debug */
     /* User can add his own implementation to report the HAL error return state */
 	printf("Error_Handler() called - program execution stopped");
     __disable_irq();
     while (1)
     {
     }
-    /* USER CODE END Error_Handler_Debug */
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
