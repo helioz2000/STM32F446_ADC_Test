@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include "global.h"
 #include "cmd.h"
+#include "calc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,7 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ADC_BUF_SIZE 4U		// number of channels x 2
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,19 +54,21 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint8_t startup_msg[] = "Startup Success\r\n";
-__IO uint16_t rx_count = 0;
-__IO uint8_t rx_byte;
-__IO uint8_t rx_buff[20];
-__IO uint8_t rx_cmd_ready = 0;
+uint16_t rx_count = 0;
+uint8_t rx_byte;
+uint8_t rx_buff[20];
+uint8_t rx_cmd_ready = 0;
 
-uint8_t adc_conv_request = 0;
-__IO uint8_t adc1_conv_done = 0;
-__IO uint8_t adc2_conv_done = 0;
-uint8_t adc1_conv_count_last = 0;
-uint8_t adc2_conv_count_last = 0;
+uint8_t adc_restart = 0;
+uint8_t display_buffer = 0;
 
-__IO uint16_t adc1_raw[ADC_BUF_SIZE];		// written by DMA
-__IO uint16_t adc2_raw[ADC_BUF_SIZE];		// written by DMA
+__IO int32_t adc1_dma_l_count = 0;
+__IO int32_t adc1_dma_h_count = 0;
+__IO int32_t adc2_dma_l_count = 0;
+__IO int32_t adc2_dma_h_count = 0;
+
+__IO uint16_t adc1_dma_buf[ADC_DMA_BUF_SIZE];		// written by DMA
+__IO uint16_t adc2_dma_buf[ADC_DMA_BUF_SIZE];		// written by DMA
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
@@ -142,9 +145,21 @@ int main(void)
   }
 
   // Start UART receive via interrupt
-  if (HAL_UART_Receive_IT(&huart2, &rx_byte, 1) != HAL_OK) {
+  if (HAL_UART_Receive_IT(&huart2, (uint8_t*)&rx_byte, 1) != HAL_OK) {
     Error_Handler();
   }
+
+  // Start ADC1 - keeps running via TIM2
+  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc1_dma_buf, ADC_DMA_BUF_SIZE) != HAL_OK) {
+  	printf("Error starting ADC1 DMA\r\n");
+  	Error_Handler();
+  }
+  //Start ADC2 - keeps running via TIM2
+  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc2_dma_buf, ADC_DMA_BUF_SIZE) != HAL_OK) {
+   	printf("Error starting ADC2 DMA\r\n");
+   	Error_Handler();
+  }
+
   // Startup success message
    if (HAL_UART_Transmit(&huart2, startup_msg, sizeof(startup_msg), 1000) != HAL_OK) {
     Error_Handler();
@@ -164,26 +179,54 @@ int main(void)
 
 	  // Handle UART communication
 	  if (rx_cmd_ready) {
-		  CMD_Handler(rx_buff);
+		  CMD_Handler((uint8_t*)rx_buff);
 		  rx_count = 0;
 		  rx_cmd_ready = 0;
 	  }
-	  if (adc_conv_request) {
-		  adc_conv_request = 0;
+
+	  if (adc_restart) {
+		  adc_restart = 0;
 		  //HAL_ADC_Start_IT (&hadc1);
-		  for (int i=0; i<ADC_BUF_SIZE; i++) {
-			adc1_raw[i]= 9999;
-		    adc2_raw[i]= 9999;
+		  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc1_dma_buf, ADC_DMA_BUF_SIZE) != HAL_OK) {
+			printf("Error re-starting ADC1 DMA\r\n");
 		  }
-		  //if (HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t*)adc_raw, ADC_BUF_SIZE) != HAL_OK) {
-		  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc1_raw[0], 4) != HAL_OK) {
-			printf("Error starting ADC1 DMA\r\n");
-		  }
-		  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)&adc2_raw[0], 4) != HAL_OK) {
-		  	printf("Error starting ADC2 DMA\r\n");
+		  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc2_dma_buf, ADC_DMA_BUF_SIZE) != HAL_OK) {
+		  	printf("Error re-starting ADC2 DMA\r\n");
 		  }
 	  }
 
+	  if (display_buffer) {
+		  calc_display_buffer(display_buffer);
+		  display_buffer = 0;
+	  }
+
+	  //HAL_Delay(800);
+
+
+	  // Check every dma data set is processed
+	  if ( (adc1_dma_l_count > 1) || (adc1_dma_h_count > 1) || (adc2_dma_l_count > 1) || (adc2_dma_h_count > 1)) {
+		  printf("Data Processing to slow\r\n");
+	  }
+	  // Process DMA buffers
+	  if (adc1_dma_l_count > 0) {
+		  //calc_process_dma_buffer(0,1);
+		  adc1_dma_l_count--;
+	  }
+	  if (adc1_dma_h_count > 0) {
+	  	  //calc_process_dma_buffer(1,1);
+	  	  adc1_dma_h_count--;
+	  }
+	  if (adc2_dma_l_count > 0) {
+	  	  //calc_process_dma_buffer(0,2);
+	  	  adc2_dma_l_count--;
+	  }
+	  if (adc2_dma_h_count > 0) {
+	  	  //calc_process_dma_buffer(1,2);
+	   	  adc2_dma_h_count--;
+	  }
+
+	  //printf("ADC1: %lu  ADC2: %lu\r\n",adc1_conv_count, adc2_conv_count);
+	  /*
 	  if (adc1_conv_done) {
 		  if (adc1_conv_done == 1) {
 			  printf("ADC1: %u %u\r\n",adc1_raw[0],adc1_raw[1]);
@@ -200,6 +243,7 @@ int main(void)
 		  }
 		  adc2_conv_done = 0;
 	  }
+	  */
   }
   /* USER CODE END 3 */
 }
@@ -284,11 +328,11 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T2_TRGO;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 2;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -345,11 +389,11 @@ static void MX_ADC2_Init(void)
   hadc2.Init.ScanConvMode = ENABLE;
   hadc2.Init.ContinuousConvMode = DISABLE;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
-  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc2.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T2_TRGO;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc2.Init.NbrOfConversion = 2;
-  hadc2.Init.DMAContinuousRequests = DISABLE;
+  hadc2.Init.DMAContinuousRequests = ENABLE;
   hadc2.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   if (HAL_ADC_Init(&hadc2) != HAL_OK)
   {
@@ -413,7 +457,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
@@ -516,24 +560,23 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-// ADC conversion is complete
+// ADC conversion - DMA buffer 2nd half full
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
-	//if (adc_read_idx > 1) { adc_read_idx = 0; }
-	//adc_raw[adc_read_idx++] = HAL_ADC_GetValue(&hadc1);
 	if (hadc == &hadc1) {
-		adc1_conv_done = 2;
+		adc1_dma_h_count++;
 	} else {
-		adc2_conv_done = 2;
+		adc2_dma_h_count++;
 	}
 }
 
+// ADC conversion - DMA buffer 1st half full
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	if (hadc == &hadc1) {
-		adc1_conv_done = 1;
+		adc1_dma_l_count++;
 	} else {
-		adc2_conv_done = 1;
+		adc2_dma_l_count++;
 	}
 }
 
@@ -574,7 +617,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if (rx_count >= sizeof(rx_buff)) {
 		rx_count = 0;		// wrap back to start
 	}
-	if ( HAL_UART_Receive_IT(&huart2, &rx_byte, 1) == HAL_UART_ERROR_NONE) {
+	if ( HAL_UART_Receive_IT(&huart2, (uint8_t*)&rx_byte, 1) == HAL_UART_ERROR_NONE) {
 		// check for End of input (CR or LF)
 		if ( (rx_byte != 0x0A) && (rx_byte !=  0x0D) ) {
 			rx_buff[rx_count++] = rx_byte;

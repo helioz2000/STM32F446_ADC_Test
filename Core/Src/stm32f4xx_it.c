@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "global.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,7 +61,10 @@ extern DMA_HandleTypeDef hdma_adc2;
 extern TIM_HandleTypeDef htim2;
 extern UART_HandleTypeDef huart2;
 /* USER CODE BEGIN EV */
-
+extern uint8_t adc1_raw[];
+extern uint8_t adc2_raw[];
+extern ADC_HandleTypeDef hadc1;
+extern ADC_HandleTypeDef hadc2;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -211,7 +215,8 @@ void TIM2_IRQHandler(void)
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
-  HAL_GPIO_TogglePin (GPIOA, GPIO_PIN_9);
+  // Debug (oscilloscope) indicator for ADC trigger
+  HAL_GPIO_TogglePin (ADC_DEBUG_PORT, ADC_DEBUG_PIN);
   /* USER CODE END TIM2_IRQn 1 */
 }
 

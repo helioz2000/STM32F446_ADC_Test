@@ -1,0 +1,2 @@
+../Core/Src/calc.c:22:6:calc_process_dma_buffer	5
+../Core/Src/calc.c:52:6:calc_display_buffer	4

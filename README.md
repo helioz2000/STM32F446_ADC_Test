@@ -13,10 +13,10 @@ A custom PCB will be connected to the Nucleo development board. The PCB will hou
 - **IN11** - ADC2 - AC Current 3
 
 #Pinout
-- IN0 : PA0 : CN8-1 : CN7-28 : Arduino A0 
-- IN1 : PA1 : CN8-2 : CN7-30 : Arduino A1 
-- IN10 : PC0 : CN8-6 : CN7-38 : Arduino A5
-- IN11 : PC1 : CN8-5 : CN7-36 : Arduino A4
+- IN0 : PA0 : CN8-1 : CN7-28 : Arduino A0 V1
+- IN1 : PA1 : CN8-2 : CN7-30 : Arduino A1 I2
+- IN10 : PC0 : CN8-6 : CN7-38 : Arduino A5 I1
+- IN11 : PC1 : CN8-5 : CN7-36 : Arduino A4 I3
 
 #Timer usage
 TIM2 - APB1 - 90MHz CLK = 11.11111ns / pulse
@@ -25,6 +25,10 @@ ARR 2250 = 25us (theoretically)
 The test board needed ARR 2286 to achieve 25us (91.45MHz)
 
 ADC measurement every 25us allows for 800 measurements per 20ms (one 50Hz cycle) providing a reading better than 0.5 degrees of phase. 
+
+To produce a timer call once a second use th following settings:
+- PSC 9000 (100us)
+- ARR 10000 (1s)
 
 #ADC usage
 PCLK2 (90MHz) / 8 = 11.25 Mhz ADC clock = 88.88ns
