@@ -61,6 +61,7 @@ uint8_t rx_cmd_ready = 0;
 
 uint8_t adc_restart = 0;
 uint8_t display_buffer = 0;
+uint8_t csv_buffer = 0;
 
 __IO int32_t adc1_dma_l_count = 0;
 __IO int32_t adc1_dma_h_count = 0;
@@ -199,6 +200,11 @@ int main(void)
 		  calc_display_buffer(display_buffer-1);
 		  display_buffer = 0;
 	  }
+
+	  if (csv_buffer) {
+	  		  calc_csv_buffer(csv_buffer-1);
+	  		  csv_buffer = 0;
+	  	  }
 
 	  //HAL_Delay(800);
 

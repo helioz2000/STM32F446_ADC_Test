@@ -19,6 +19,7 @@
 extern UART_HandleTypeDef huart2;
 extern uint8_t adc_restart;
 extern uint8_t display_buffer;
+extern uint8_t csv_buffer;
 
 uint8_t cmd_len = 0;
 
@@ -42,6 +43,7 @@ int cmd_L(uint8_t* cmd_str) {
 
 int cmd_help(void) {
 	printf("\r\nCommand Help:\r\n");
+	printf("C[1..4]: CSV output ADC channel 1 - 4 buffer content\r\n");
 	printf("D[1..4]: Display ADC channel 1 - 4 buffer content\r\n");
 	printf("R: Restart ADC conversion\r\n");
 	printf("L[0,1]: LED on / off\r\n");
@@ -51,6 +53,11 @@ int cmd_help(void) {
 int cmd_process(uint8_t* cmd_str) {
 	int retval = -1;
 	switch(cmd_str[0]) {
+	case 'C':
+	case 'c':
+		csv_buffer = cmd_str[1] - 0x30;
+		retval = 0;
+		break;
 	case 'D':
 	case 'd':
 		display_buffer = cmd_str[1] - 0x30;

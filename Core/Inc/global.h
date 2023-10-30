@@ -17,6 +17,7 @@
 
 #define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading
 #define ADC_FS_MV 3300		// millivolt at full scale
+#define ADC_CENTER_RAW 1861	// centre of signal (1500mV = 1861, 1650mV = 2047)
 
 #define ADC_NUM 2		// number of ADCs in use
 #define ADC1_IDX 0			// ADC1 index for arrays
@@ -40,5 +41,8 @@
 #define ADC_NUM_DATA 800U		// number of data points to record
 #define ADC_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS // buffer size
 #define ADC_DMA_BUF_SIZE ADC_BUF_SIZE * 2	// DMA buffer contains 2 sets of data
+
+#define MAX(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
+#define MIN(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
 
 #endif /* INC_GLOBAL_H_ */
