@@ -15,6 +15,15 @@
 #define LED2_PORT GPIOA
 #define LED2_PIN GPIO_PIN_5
 
+#define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading
+#define ADC_FS_MV 3300		// millivolt at full scale
+
+#define ADC_NUM 2		// number of ADCs in use
+#define ADC1_IDX 0			// ADC1 index for arrays
+#define ADC2_IDX 1			// ADC2 index for arrays
+
+#define ADC_CH_V 0
+#define ADC_CH_I1 1
 /*
  * DMA buffer definition
  * The DMA buffer contains one int16 entry per ADC reading
@@ -27,7 +36,7 @@
  * Sampling at 40kHzA a full sine wave (20ms) contains 800 samples
  * one sample is taken every 25us or every 0.45 Degrees
  */
-#define ADC_NUM_CHANNELS 2U	// number of channels to convert
+#define ADC_NUM_CHANNELS 2	// number of channels to convert (on one ADC)
 #define ADC_NUM_DATA 800U		// number of data points to record
 #define ADC_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS // buffer size
 #define ADC_DMA_BUF_SIZE ADC_BUF_SIZE * 2	// DMA buffer contains 2 sets of data

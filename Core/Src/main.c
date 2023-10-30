@@ -67,8 +67,8 @@ __IO int32_t adc1_dma_h_count = 0;
 __IO int32_t adc2_dma_l_count = 0;
 __IO int32_t adc2_dma_h_count = 0;
 
-__IO uint16_t adc1_dma_buf[ADC_DMA_BUF_SIZE];		// written by DMA
-__IO uint16_t adc2_dma_buf[ADC_DMA_BUF_SIZE];		// written by DMA
+__IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// 2 arrays, one per ADC
+//__IO uint16_t adc2_dma_buf[ADC_DMA_BUF_SIZE];		// written by DMA
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
@@ -150,12 +150,12 @@ int main(void)
   }
 
   // Start ADC1 - keeps running via TIM2
-  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc1_dma_buf, ADC_DMA_BUF_SIZE) != HAL_OK) {
+  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
   	printf("Error starting ADC1 DMA\r\n");
   	Error_Handler();
   }
   //Start ADC2 - keeps running via TIM2
-  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc2_dma_buf, ADC_DMA_BUF_SIZE) != HAL_OK) {
+  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
    	printf("Error starting ADC2 DMA\r\n");
    	Error_Handler();
   }
@@ -187,41 +187,54 @@ int main(void)
 	  if (adc_restart) {
 		  adc_restart = 0;
 		  //HAL_ADC_Start_IT (&hadc1);
-		  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc1_dma_buf, ADC_DMA_BUF_SIZE) != HAL_OK) {
+		  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
 			printf("Error re-starting ADC1 DMA\r\n");
 		  }
-		  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc2_dma_buf, ADC_DMA_BUF_SIZE) != HAL_OK) {
+		  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
 		  	printf("Error re-starting ADC2 DMA\r\n");
 		  }
 	  }
 
 	  if (display_buffer) {
-		  calc_display_buffer(display_buffer);
+		  calc_display_buffer(display_buffer-1);
 		  display_buffer = 0;
 	  }
 
 	  //HAL_Delay(800);
 
-
-	  // Check every dma data set is processed
+	  // Check if we have missed processing DMA data sets
+	  // This occurs if the main loop execution takes longer than 20ms (e.g. terminal output of lots of data)
 	  if ( (adc1_dma_l_count > 1) || (adc1_dma_h_count > 1) || (adc2_dma_l_count > 1) || (adc2_dma_h_count > 1)) {
-		  printf("Data Processing to slow\r\n");
+		  printf("Processing missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
+		  if (adc1_dma_l_count > 1) { adc1_dma_l_count = 1; }
+		  if (adc1_dma_h_count > 1) { adc1_dma_h_count = 1; }
+		  if (adc2_dma_l_count > 1) { adc2_dma_l_count = 1; }
+		  if (adc2_dma_h_count > 1) { adc2_dma_h_count = 1; }
 	  }
+
 	  // Process DMA buffers
 	  if (adc1_dma_l_count > 0) {
-		  //calc_process_dma_buffer(0,1);
+		  if (calc_process_dma_buffer(0,ADC1_IDX) != 0) {
+			  printf("Processing ADC1 DMA 1st half failed\r\n");
+		  }
 		  adc1_dma_l_count--;
 	  }
 	  if (adc1_dma_h_count > 0) {
-	  	  //calc_process_dma_buffer(1,1);
+	  	  if (calc_process_dma_buffer(1,ADC1_IDX) != 0) {
+	  		printf("Processing ADC1 DMA 2nd half failed\r\n");
+	  	  }
 	  	  adc1_dma_h_count--;
 	  }
 	  if (adc2_dma_l_count > 0) {
-	  	  //calc_process_dma_buffer(0,2);
+	  	  if (calc_process_dma_buffer(0,ADC2_IDX) != 0) {
+	  		printf("Processing ADC2 DMA 1st half failed\r\n");
+	  	  }
 	  	  adc2_dma_l_count--;
 	  }
 	  if (adc2_dma_h_count > 0) {
-	  	  //calc_process_dma_buffer(1,2);
+	  	  if (calc_process_dma_buffer(1,ADC2_IDX) != 0) {
+	  		printf("Processing ADC2 DMA 2nd half failed\r\n");
+	  	  }
 	   	  adc2_dma_h_count--;
 	  }
 
@@ -485,7 +498,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 9600;
+  huart2.Init.BaudRate = 115200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;

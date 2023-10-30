@@ -53,7 +53,7 @@ int cmd_process(uint8_t* cmd_str) {
 	switch(cmd_str[0]) {
 	case 'D':
 	case 'd':
-		display_buffer = cmd_str[1] - 0x31;
+		display_buffer = cmd_str[1] - 0x30;
 		retval = 0;
 		break;
 	case 'L':
