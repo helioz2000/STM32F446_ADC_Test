@@ -19,14 +19,16 @@ A custom PCB will be connected to the Nucleo development board. The PCB will hou
 - IN11 : PC1 : CN8-5 : CN7-36 : Arduino A4 I3
 
 #Timer usage
-TIM2 - APB1 - 90MHz CLK = 11.11111ns / pulse
-PSC 0 (No prescale)
-ARR 2250 = 25us (theoretically)
-The test board needed ARR 2286 to achieve 25us (91.45MHz)
+- TIM2 - APB1 - 90MHz CLK = 11.11111ns / pulse
+- PSC 0 (No prescale)
+- ARR 2250 = 25us (theoretically)
+- The test board requires ARR 2286 to achieve 25us (91.45MHz)
 
-ADC measurement every 25us allows for 800 measurements per 20ms (one 50Hz cycle) providing a reading better than 0.5 degrees of phase. 
+ADC measurement every 25us allows for 800 measurements per 20ms (one 50Hz cycle) providing a resolution better than 0.5 degrees of phase.
 
-To produce a timer call once a second use th following settings:
+To enable accurate analysis of each data set we look at **840** data samples covering **21ms**. Each data set will capture a full cycle at a mains frequency as low as  **47.62 Hz**. 
+
+To produce a timer call once a second use the following settings:
 - PSC 9000 (100us)
 - ARR 10000 (1s)
 

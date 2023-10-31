@@ -38,7 +38,7 @@
  * one sample is taken every 25us or every 0.45 Degrees
  */
 #define ADC_NUM_CHANNELS 2	// number of channels to convert (on one ADC)
-#define ADC_NUM_DATA 800U		// number of data points to record
+#define ADC_NUM_DATA 840U		// number of data points to record
 #define ADC_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS // buffer size
 #define ADC_DMA_BUF_SIZE ADC_BUF_SIZE * 2	// DMA buffer contains 2 sets of data
 

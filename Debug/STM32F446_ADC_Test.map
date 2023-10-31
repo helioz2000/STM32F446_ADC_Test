@@ -4289,109 +4289,109 @@ LOAD /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32c
  .igot.plt      0x0000000020000090        0x0 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/thumb/v7e-m+fp/hard/crtbegin.o
                 0x0000000020000090                . = ALIGN (0x4)
 
-.bss            0x0000000020000090     0x4eac load address 0x00000000080078ec
+.bss            0x0000000020000090     0x526c load address 0x00000000080078ec
                 0x0000000020000090                _sbss = .
                 0x0000000020000090                __bss_start__ = _sbss
  *(.bss)
  .bss           0x0000000020000090       0x1c /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/thumb/v7e-m+fp/hard/crtbegin.o
  *(.bss*)
  .bss.adc_raw_buf
-                0x00000000200000ac     0x1900 ./Core/Src/calc.o
+                0x00000000200000ac     0x1a40 ./Core/Src/calc.o
                 0x00000000200000ac                adc_raw_buf
  .bss.adc_raw_meta
-                0x00000000200019ac       0x30 ./Core/Src/calc.o
-                0x00000000200019ac                adc_raw_meta
- .bss.cmd_len   0x00000000200019dc        0x1 ./Core/Src/cmd.o
-                0x00000000200019dc                cmd_len
- *fill*         0x00000000200019dd        0x3 
- .bss.hadc1     0x00000000200019e0       0x48 ./Core/Src/main.o
-                0x00000000200019e0                hadc1
- .bss.hadc2     0x0000000020001a28       0x48 ./Core/Src/main.o
-                0x0000000020001a28                hadc2
+                0x0000000020001aec       0x30 ./Core/Src/calc.o
+                0x0000000020001aec                adc_raw_meta
+ .bss.cmd_len   0x0000000020001b1c        0x1 ./Core/Src/cmd.o
+                0x0000000020001b1c                cmd_len
+ *fill*         0x0000000020001b1d        0x3 
+ .bss.hadc1     0x0000000020001b20       0x48 ./Core/Src/main.o
+                0x0000000020001b20                hadc1
+ .bss.hadc2     0x0000000020001b68       0x48 ./Core/Src/main.o
+                0x0000000020001b68                hadc2
  .bss.hdma_adc1
-                0x0000000020001a70       0x60 ./Core/Src/main.o
-                0x0000000020001a70                hdma_adc1
+                0x0000000020001bb0       0x60 ./Core/Src/main.o
+                0x0000000020001bb0                hdma_adc1
  .bss.hdma_adc2
-                0x0000000020001ad0       0x60 ./Core/Src/main.o
-                0x0000000020001ad0                hdma_adc2
- .bss.htim2     0x0000000020001b30       0x48 ./Core/Src/main.o
-                0x0000000020001b30                htim2
- .bss.huart2    0x0000000020001b78       0x44 ./Core/Src/main.o
-                0x0000000020001b78                huart2
- .bss.rx_count  0x0000000020001bbc        0x2 ./Core/Src/main.o
-                0x0000000020001bbc                rx_count
- .bss.rx_byte   0x0000000020001bbe        0x1 ./Core/Src/main.o
-                0x0000000020001bbe                rx_byte
- *fill*         0x0000000020001bbf        0x1 
- .bss.rx_buff   0x0000000020001bc0       0x14 ./Core/Src/main.o
-                0x0000000020001bc0                rx_buff
+                0x0000000020001c10       0x60 ./Core/Src/main.o
+                0x0000000020001c10                hdma_adc2
+ .bss.htim2     0x0000000020001c70       0x48 ./Core/Src/main.o
+                0x0000000020001c70                htim2
+ .bss.huart2    0x0000000020001cb8       0x44 ./Core/Src/main.o
+                0x0000000020001cb8                huart2
+ .bss.rx_count  0x0000000020001cfc        0x2 ./Core/Src/main.o
+                0x0000000020001cfc                rx_count
+ .bss.rx_byte   0x0000000020001cfe        0x1 ./Core/Src/main.o
+                0x0000000020001cfe                rx_byte
+ *fill*         0x0000000020001cff        0x1 
+ .bss.rx_buff   0x0000000020001d00       0x14 ./Core/Src/main.o
+                0x0000000020001d00                rx_buff
  .bss.rx_cmd_ready
-                0x0000000020001bd4        0x1 ./Core/Src/main.o
-                0x0000000020001bd4                rx_cmd_ready
+                0x0000000020001d14        0x1 ./Core/Src/main.o
+                0x0000000020001d14                rx_cmd_ready
  .bss.adc_restart
-                0x0000000020001bd5        0x1 ./Core/Src/main.o
-                0x0000000020001bd5                adc_restart
+                0x0000000020001d15        0x1 ./Core/Src/main.o
+                0x0000000020001d15                adc_restart
  .bss.display_buffer
-                0x0000000020001bd6        0x1 ./Core/Src/main.o
-                0x0000000020001bd6                display_buffer
+                0x0000000020001d16        0x1 ./Core/Src/main.o
+                0x0000000020001d16                display_buffer
  .bss.csv_buffer
-                0x0000000020001bd7        0x1 ./Core/Src/main.o
-                0x0000000020001bd7                csv_buffer
+                0x0000000020001d17        0x1 ./Core/Src/main.o
+                0x0000000020001d17                csv_buffer
  .bss.adc1_dma_l_count
-                0x0000000020001bd8        0x4 ./Core/Src/main.o
-                0x0000000020001bd8                adc1_dma_l_count
+                0x0000000020001d18        0x4 ./Core/Src/main.o
+                0x0000000020001d18                adc1_dma_l_count
  .bss.adc1_dma_h_count
-                0x0000000020001bdc        0x4 ./Core/Src/main.o
-                0x0000000020001bdc                adc1_dma_h_count
+                0x0000000020001d1c        0x4 ./Core/Src/main.o
+                0x0000000020001d1c                adc1_dma_h_count
  .bss.adc2_dma_l_count
-                0x0000000020001be0        0x4 ./Core/Src/main.o
-                0x0000000020001be0                adc2_dma_l_count
+                0x0000000020001d20        0x4 ./Core/Src/main.o
+                0x0000000020001d20                adc2_dma_l_count
  .bss.adc2_dma_h_count
-                0x0000000020001be4        0x4 ./Core/Src/main.o
-                0x0000000020001be4                adc2_dma_h_count
+                0x0000000020001d24        0x4 ./Core/Src/main.o
+                0x0000000020001d24                adc2_dma_h_count
  .bss.adc_dma_buf
-                0x0000000020001be8     0x3200 ./Core/Src/main.o
-                0x0000000020001be8                adc_dma_buf
+                0x0000000020001d28     0x3480 ./Core/Src/main.o
+                0x0000000020001d28                adc_dma_buf
  .bss.__sbrk_heap_end
-                0x0000000020004de8        0x4 ./Core/Src/sysmem.o
- .bss.uwTick    0x0000000020004dec        0x4 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
-                0x0000000020004dec                uwTick
- .bss.__sf      0x0000000020004df0      0x138 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-findfp.o)
-                0x0000000020004df0                __sf
+                0x00000000200051a8        0x4 ./Core/Src/sysmem.o
+ .bss.uwTick    0x00000000200051ac        0x4 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
+                0x00000000200051ac                uwTick
+ .bss.__sf      0x00000000200051b0      0x138 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-findfp.o)
+                0x00000000200051b0                __sf
  .bss.__stdio_exit_handler
-                0x0000000020004f28        0x4 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-findfp.o)
-                0x0000000020004f28                __stdio_exit_handler
+                0x00000000200052e8        0x4 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-findfp.o)
+                0x00000000200052e8                __stdio_exit_handler
  .bss.__lock___malloc_recursive_mutex
-                0x0000000020004f2c        0x1 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-lock.o)
-                0x0000000020004f2c                __lock___malloc_recursive_mutex
+                0x00000000200052ec        0x1 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-lock.o)
+                0x00000000200052ec                __lock___malloc_recursive_mutex
  .bss.__lock___sfp_recursive_mutex
-                0x0000000020004f2d        0x1 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-lock.o)
-                0x0000000020004f2d                __lock___sfp_recursive_mutex
- *fill*         0x0000000020004f2e        0x2 
+                0x00000000200052ed        0x1 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-lock.o)
+                0x00000000200052ed                __lock___sfp_recursive_mutex
+ *fill*         0x00000000200052ee        0x2 
  .bss.__malloc_free_list
-                0x0000000020004f30        0x4 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-mallocr.o)
-                0x0000000020004f30                __malloc_free_list
+                0x00000000200052f0        0x4 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-mallocr.o)
+                0x00000000200052f0                __malloc_free_list
  .bss.__malloc_sbrk_start
-                0x0000000020004f34        0x4 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-mallocr.o)
-                0x0000000020004f34                __malloc_sbrk_start
- .bss.errno     0x0000000020004f38        0x4 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-reent.o)
-                0x0000000020004f38                errno
+                0x00000000200052f4        0x4 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-mallocr.o)
+                0x00000000200052f4                __malloc_sbrk_start
+ .bss.errno     0x00000000200052f8        0x4 /Applications/STM32/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.11.3.rel1.macos64_1.1.1.202309131626/tools/bin/../lib/gcc/arm-none-eabi/11.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc_nano.a(libc_a-reent.o)
+                0x00000000200052f8                errno
  *(COMMON)
-                0x0000000020004f3c                . = ALIGN (0x4)
-                0x0000000020004f3c                _ebss = .
-                0x0000000020004f3c                __bss_end__ = _ebss
+                0x00000000200052fc                . = ALIGN (0x4)
+                0x00000000200052fc                _ebss = .
+                0x00000000200052fc                __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x0000000020004f3c      0x604 load address 0x00000000080078ec
-                0x0000000020004f40                . = ALIGN (0x8)
- *fill*         0x0000000020004f3c        0x4 
+                0x00000000200052fc      0x604 load address 0x00000000080078ec
+                0x0000000020005300                . = ALIGN (0x8)
+ *fill*         0x00000000200052fc        0x4 
                 [!provide]                        PROVIDE (end = .)
-                0x0000000020004f40                PROVIDE (_end = .)
-                0x0000000020005140                . = (. + _Min_Heap_Size)
- *fill*         0x0000000020004f40      0x200 
-                0x0000000020005540                . = (. + _Min_Stack_Size)
- *fill*         0x0000000020005140      0x400 
-                0x0000000020005540                . = ALIGN (0x8)
+                0x0000000020005300                PROVIDE (_end = .)
+                0x0000000020005500                . = (. + _Min_Heap_Size)
+ *fill*         0x0000000020005300      0x200 
+                0x0000000020005900                . = (. + _Min_Stack_Size)
+ *fill*         0x0000000020005500      0x400 
+                0x0000000020005900                . = ALIGN (0x8)
 
 /DISCARD/
  libc.a(*)
