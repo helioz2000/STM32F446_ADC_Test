@@ -32,6 +32,13 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+// For display support
+#include "fonts.h"
+#include "z_displ_ILI9XXX.h"
+#include "z_displ_ILI9XXX_test.h"
+#include "z_touch_XPT2046.h"
+#include "z_touch_XPT2046_test.h"
+#include "z_touch_XPT2046_menu.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -59,18 +66,34 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
+#define TOUCH_MSIO_Pin GPIO_PIN_2
+#define TOUCH_MSIO_GPIO_Port GPIOC
+#define DISP_MOSI_Pin GPIO_PIN_3
+#define DISP_MOSI_GPIO_Port GPIOC
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
+#define DISPL_DC_Pin GPIO_PIN_7
+#define DISPL_DC_GPIO_Port GPIOA
+#define DISPL_SCK_Pin GPIO_PIN_10
+#define DISPL_SCK_GPIO_Port GPIOB
+#define DEBUG_Pin GPIO_PIN_9
+#define DEBUG_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
+#define DISPL_LED_Pin GPIO_PIN_6
+#define DISPL_LED_GPIO_Port GPIOB
+#define DISPL_CS_Pin GPIO_PIN_8
+#define DISPL_CS_GPIO_Port GPIOB
+#define DISPL_RST_Pin GPIO_PIN_9
+#define DISPL_RST_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
