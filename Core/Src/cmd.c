@@ -20,6 +20,8 @@ extern UART_HandleTypeDef huart2;
 extern uint8_t adc_restart;
 extern uint8_t display_buffer;
 extern uint8_t csv_buffer;
+extern uint8_t led_cmd;
+extern uint8_t tft_display;
 
 uint8_t cmd_len = 0;
 
@@ -27,26 +29,33 @@ void cmd_error(uint8_t* cmd_str) {
 	printf("Error in command <%s>\r\n", cmd_str);
 }
 
-int cmd_L(uint8_t* cmd_str) {
+
+int cmd_t(uint8_t* cmd_str) {
 	switch (cmd_str[1]) {
 	case '0':
-		printf("-LED OFF-\r\n");
+		tft_display = 1;
 		return 0;
 		break;
 	case '1':
-		printf("-LED ON-\r\n");
+		tft_display = 2;
 		return 0;
 		break;
+	case 'T':
+	case 't':
+		tft_display = 9;
+		return 0;
 	}
 	return -1;
 }
+
 
 int cmd_help(void) {
 	printf("\r\nCommand Help:\r\n");
 	printf("C[1..4]: CSV output ADC channel 1 - 4 buffer content\r\n");
 	printf("D[1..4]: Display ADC channel 1 - 4 buffer content\r\n");
 	printf("R: Restart ADC conversion\r\n");
-	printf("L[0,1]: LED on / off\r\n");
+	printf("T[0|1|T]: TFT display OFF / ON / Performance test");
+	printf("L[0,1]: LED L2 OFF / ON\r\n");
 	return 0;
 }
 
@@ -65,12 +74,17 @@ int cmd_process(uint8_t* cmd_str) {
 		break;
 	case 'L':
 	case 'l':
-		retval = cmd_L(cmd_str);
+		led_cmd = cmd_str[1] - 0x30 + 1;
+		retval = 0;
 		break;
 	case 'R':
 	case 'r':
 		adc_restart = 1;
 		retval = 0;
+		break;
+	case 'T':
+	case 't':
+		retval = cmd_t(cmd_str);
 		break;
 	case 'H':
 	case 'h':

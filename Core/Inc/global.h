@@ -8,9 +8,6 @@
 #ifndef INC_GLOBAL_H_
 #define INC_GLOBAL_H_
 
-#define LED2_PORT GPIOA
-#define LED2_PIN GPIO_PIN_5
-
 #define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading
 #define ADC_FS_MV 3300		// millivolt at full scale
 #define ADC_CENTER_RAW 1861	// centre of signal (1500mV = 1861, 1650mV = 2047)
