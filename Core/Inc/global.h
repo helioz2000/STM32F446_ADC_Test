@@ -8,10 +8,6 @@
 #ifndef INC_GLOBAL_H_
 #define INC_GLOBAL_H_
 
-// debug pin - to monitor ADC conversion trigger frequency via oscilloscope
-#define ADC_DEBUG_PORT GPIOA
-#define ADC_DEBUG_PIN GPIO_PIN_9
-
 #define LED2_PORT GPIOA
 #define LED2_PIN GPIO_PIN_5
 
