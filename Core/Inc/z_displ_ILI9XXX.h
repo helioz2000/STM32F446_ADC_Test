@@ -72,8 +72,12 @@
  * when transferring data to/from DISPLAY or TOUCH
  * Keep in mind that Touch SPI Baudrate should be no more than 1 Mbps
  ***************************************************/
+/*
+ * Note: Nucleo64-F446RE is set to 45MHz on the input of the prescaler
+ * 64 = 703.125kHz, 2 = 22.5MHz
+ */
 #define DISPL_PRESCALER SPI_BAUDRATEPRESCALER_2     //prescaler assigned to display SPI port
-#define TOUCH_PRESCALER SPI_BAUDRATEPRESCALER_2	//prescaler assigned to touch device SPI port
+#define TOUCH_PRESCALER SPI_BAUDRATEPRESCALER_64	//prescaler assigned to touch device SPI port
 
 
 /*****************     STEP 5      *****************
@@ -145,7 +149,7 @@
  * TouchGFX buffers>2700bytes need BUFLEVEL 13
  * TouchGFX buffers>1300bytes need BUFLEVEL 12
 ***************************************************/
-#define BUFLEVEL 13
+#define BUFLEVEL 10
 
 /*|||||||| END OF USER/PROJECT PARAMETERS ||||||||*/
 

@@ -54,7 +54,7 @@ int cmd_help(void) {
 	printf("C[1..4]: CSV output ADC channel 1 - 4 buffer content\r\n");
 	printf("D[1..4]: Display ADC channel 1 - 4 buffer content\r\n");
 	printf("R: Restart ADC conversion\r\n");
-	printf("T[0|1|T]: TFT display OFF / ON / Performance test");
+	printf("T[0|1|T]: TFT display OFF / ON / Performance test\r\n");
 	printf("L[0,1]: LED L2 OFF / ON\r\n");
 	return 0;
 }

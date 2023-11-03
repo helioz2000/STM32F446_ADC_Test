@@ -162,14 +162,14 @@ void Displ_WriteData(uint8_t* buff, size_t buff_size, uint8_t isTouchGFXBuffer){
  **********************************/
 void ILI9XXX_Init(){
 	Displ_Select();
-
 	HAL_GPIO_WritePin(DISPL_RST_GPIO_Port, DISPL_RST_Pin, GPIO_PIN_RESET);
 	HAL_Delay(1);
 	HAL_GPIO_WritePin(DISPL_RST_GPIO_Port, DISPL_RST_Pin, GPIO_PIN_SET);
-	HAL_Delay(150);
+	HAL_Delay(165);
+	//HAL_Delay(150);
 
 /******************************************
- * below lines shlould empower brightness
+ * below lines should empower brightness
  * and quality with a higher power
  * consumption. I haven't seen meaningful
  * differences on both displays: REMOVED

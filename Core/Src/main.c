@@ -150,9 +150,12 @@ int main(void)
 
 
   // TFT Display
-  Displ_Init(Displ_Orientat_0);		// initialize the display and set the initial display orientation (here is orientaton: 0°) - THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
-  Displ_CLS(BLACK);			// after initialization (above) and before turning on backlight (below), you can draw the initial display appearance. (here I'm just clearing display with a black background)
   Displ_BackLight('1');
+  Displ_Init(Displ_Orientat_0);		// initialize the display and set the initial display orientation (here is orientaton: 0°) - THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
+  printf("Displ_Init - done\r\n");
+  Displ_CLS(BLACK);			// after initialization (above) and before turning on backlight (below), you can draw the initial display appearance.
+  printf("Displ_CLS - done\r\n");
+
 
   // Start UART receive via interrupt
   if (HAL_UART_Receive_IT(&huart2, (uint8_t*)&rx_byte, 1) != HAL_OK) {
@@ -223,7 +226,9 @@ int main(void)
 		  if (tft_display == 9) {
 			  printf("Running TFT performance test ...\r\n");
 			  Displ_BackLight('1');
-			  Displ_PerfTest();
+			  //Displ_PerfTest();
+			  Displ_TestAll();
+			  Displ_BackLight('0');
 			  printf("....completed\r\n");
 		  } else {
 			  if (tft_display == 1) {
@@ -234,6 +239,7 @@ int main(void)
 		  }
 		  tft_display = 0;
 	  }
+
 	  if (led_cmd) {
 		  if (led_cmd > 1) {
 			  HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);

@@ -519,7 +519,7 @@ void Displ_PerfTest() {
 		HAL_Delay(5000);
 #endif
 	}
-}
+ }
 
 
 
