@@ -8,21 +8,16 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
+#include "main.h"
 #include "global.h"
 #include "calc.h"
+#include "term.h"
 
 extern uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];
 //extern uint16_t adc2_dma_buf[];
 
-struct rawBufMeta {
-	uint16_t min;
-	uint16_t max;
-	int zero_cross1;
-	int zero_cross2;
-};
-
-uint16_t adc_raw_buf[4][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
-struct rawBufMeta adc_raw_meta[4];			// store meta data for associated buffer
+extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
+struct rawBufMeta adc_raw_meta[ADC_NUM*ADC_NUM_CHANNELS];			// store meta data for associated buffer
 
 //inline int16_t MAX(int16_t a, int16_t b) { return((a) > (b) ? a : b); }
 //inline int16_t MIN(int16_t a, int16_t b) { return((a) < (b) ? a : b); }
@@ -74,7 +69,7 @@ int calc_process_dma_buffer(int second_half, int adc_num) {
 	return 0;
 }
 
-void calc_display_buffer(uint8_t buf_num) {
+void calc_show_buffer(uint8_t buf_num) {
 	int count = 0;
 	uint16_t address = 0;
 	uint64_t squared_acc = 0;
@@ -83,32 +78,32 @@ void calc_display_buffer(uint8_t buf_num) {
 	//uint16_t adc_raw_min = adc_raw_buf[buf_num][0];
 	//uint16_t adc_raw_max = adc_raw_min;
 	if (buf_num > 3) { return; }
-	printf("Buffer %d\r\n", buf_num);
-	printf("%3d: ", 0);
+	term_print("Buffer %d\r\n", buf_num);
+	term_print("%3d: ", 0);
 	for (int i=0; i<ADC_NUM_DATA; i++) {
 		if (count >= 20) {
 			count =0;
-			printf("\r\n%3d: ", address);
+			term_print("\r\n%3d: ", address);
 		}
 		adc_raw = adc_raw_buf[buf_num][i];
-		printf("%04u ", adc_raw);
+		term_print("%04u ", adc_raw);
 
 		squared_acc += adc_raw_buf[buf_num][i] * adc_raw_buf[buf_num][i];
 		count++; address++;
 	}
 	rms_value = (uint16_t) sqrt((squared_acc / ADC_NUM_DATA));
-	printf("\r\nMin: %dmV Max: %dmV ", calc_adc_raw_to_mv_int(adc_raw_meta[buf_num].min), calc_adc_raw_to_mv_int(adc_raw_meta[buf_num].max) );
-	printf("RMS: %dmV [%u]\r\n", calc_adc_raw_to_mv_int(rms_value), rms_value);
+	term_print("\r\nMin: %dmV Max: %dmV ", calc_adc_raw_to_mv_int(adc_raw_meta[buf_num].min), calc_adc_raw_to_mv_int(adc_raw_meta[buf_num].max) );
+	term_print("RMS: %dmV [%u]\r\n", calc_adc_raw_to_mv_int(rms_value), rms_value);
 
 }
 
 void calc_csv_buffer(uint8_t buf_num) {
 	if (buf_num > 3) { return; }
-	printf("Buffer %d\r\n", buf_num);
+	term_print("Buffer %d\r\n", buf_num);
 	for (int i=0; i<ADC_NUM_DATA; i++) {
-		printf("%d,%u\r\n", i, adc_raw_buf[buf_num][i]);
+		term_print("%d,%u\r\n", i, adc_raw_buf[buf_num][i]);
 	}
-	printf("\r\n\r\n");
+	term_print("\r\n\r\n");
 }
 
 /*

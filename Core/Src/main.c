@@ -23,8 +23,10 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "global.h"
+#include "term.h"
 #include "cmd.h"
 #include "calc.h"
+#include "display.h"
 
 /* USER CODE END Includes */
 
@@ -64,7 +66,8 @@ uint8_t rx_buff[20];
 uint8_t rx_cmd_ready = 0;
 
 uint8_t adc_restart = 0;
-uint8_t display_buffer = 0;
+uint8_t show_buffer = 0;
+uint8_t cmd_display_buffer = 0;
 uint8_t csv_buffer = 0;
 uint8_t led_cmd = 0;
 uint8_t tft_display = 0;
@@ -74,8 +77,9 @@ __IO int32_t adc1_dma_h_count = 0;
 __IO int32_t adc2_dma_l_count = 0;
 __IO int32_t adc2_dma_h_count = 0;
 
-__IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// 2 arrays, one per ADC
+__IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// 2 arrays, one per ADC containing 2 channels
 //__IO uint16_t adc2_dma_buf[ADC_DMA_BUF_SIZE];		// written by DMA
+uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
@@ -90,20 +94,6 @@ static void MX_ADC1_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
-
-/** redirect all printf output to UART **/
-#ifdef __GNUC__
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif
-
-PUTCHAR_PROTOTYPE
-{
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-  return ch;
-}
-/** **/
 
 /* USER CODE END PFP */
 
@@ -151,10 +141,13 @@ int main(void)
 
   // TFT Display
   Displ_BackLight('1');
-  Displ_Init(Displ_Orientat_0);		// initialize the display and set the initial display orientation (here is orientaton: 0°) - THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
-  printf("Displ_Init - done\r\n");
+  Displ_Init(Displ_Orientat_90);		// initialize the display and set the initial display orientation (here is orientaton: 0°) - THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
+  //term_print("Displ_Init - done\r\n");
   Displ_CLS(BLACK);			// after initialization (above) and before turning on backlight (below), you can draw the initial display appearance.
-  printf("Displ_CLS - done\r\n");
+  //term_print("Displ_CLS - done\r\n");
+
+  Displ_Line(0, 160, 479, 160, BLUE);
+  Displ_Line(0, 140, 240, 140, RED);
 
 
   // Start UART receive via interrupt
@@ -163,19 +156,19 @@ int main(void)
   }
 
   // Start Timer for ADC readings
-    if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK) {
-      Error_Handler();
-    }
+  if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK) {
+     Error_Handler();
+  }
 
   // Start ADC1 - keeps running via TIM2
   if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-  	printf("Error starting ADC1 DMA\r\n");
-  	Error_Handler();
+	  term_print("Error starting ADC1 DMA\r\n");
+  	  Error_Handler();
   }
   //Start ADC2 - keeps running via TIM2
   if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-   	printf("Error starting ADC2 DMA\r\n");
-   	Error_Handler();
+	  term_print("Error starting ADC2 DMA\r\n");
+   	  Error_Handler();
   }
 
   // Startup success message
@@ -205,16 +198,21 @@ int main(void)
 		  adc_restart = 0;
 		  //HAL_ADC_Start_IT (&hadc1);
 		  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-			printf("Error re-starting ADC1 DMA\r\n");
+			term_print("Error re-starting ADC1 DMA\r\n");
 		  }
 		  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-		  	printf("Error re-starting ADC2 DMA\r\n");
+			  term_print("Error re-starting ADC2 DMA\r\n");
 		  }
 	  }
 
-	  if (display_buffer) {
-		  calc_display_buffer(display_buffer-1);
-		  display_buffer = 0;
+	  if (show_buffer) {
+		  calc_show_buffer(show_buffer-1);
+		  show_buffer = 0;
+	  }
+
+	  if (cmd_display_buffer) {
+		  display_show_curve(cmd_display_buffer-1);
+	  	  cmd_display_buffer = 0;
 	  }
 
 	  if (csv_buffer) {
@@ -224,12 +222,12 @@ int main(void)
 
 	  if (tft_display) {
 		  if (tft_display == 9) {
-			  printf("Running TFT performance test ...\r\n");
+			  term_print("Running TFT performance test ...\r\n");
 			  Displ_BackLight('1');
 			  //Displ_PerfTest();
 			  Displ_TestAll();
 			  Displ_BackLight('0');
-			  printf("....completed\r\n");
+			  term_print("....completed\r\n");
 		  } else {
 			  if (tft_display == 1) {
 				  Displ_BackLight('0');
@@ -254,7 +252,7 @@ int main(void)
 	  // Check if we have missed processing DMA data sets
 	  // This occurs if the main loop execution takes longer than 20ms (e.g. terminal output of lots of data)
 	  if ( (adc1_dma_l_count > 1) || (adc1_dma_h_count > 1) || (adc2_dma_l_count > 1) || (adc2_dma_h_count > 1)) {
-		  printf("Processing missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
+		  term_print("Processing missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
 		  if (adc1_dma_l_count > 1) { adc1_dma_l_count = 1; }
 		  if (adc1_dma_h_count > 1) { adc1_dma_h_count = 1; }
 		  if (adc2_dma_l_count > 1) { adc2_dma_l_count = 1; }
@@ -264,25 +262,25 @@ int main(void)
 	  // Process DMA buffers
 	  if (adc1_dma_l_count > 0) {
 		  if (calc_process_dma_buffer(0,ADC1_IDX) != 0) {
-			  printf("Processing ADC1 DMA 1st half failed\r\n");
+			  term_print("Processing ADC1 DMA 1st half failed\r\n");
 		  }
 		  adc1_dma_l_count--;
 	  }
 	  if (adc1_dma_h_count > 0) {
 	  	  if (calc_process_dma_buffer(1,ADC1_IDX) != 0) {
-	  		printf("Processing ADC1 DMA 2nd half failed\r\n");
+	  		term_print("Processing ADC1 DMA 2nd half failed\r\n");
 	  	  }
 	  	  adc1_dma_h_count--;
 	  }
 	  if (adc2_dma_l_count > 0) {
 	  	  if (calc_process_dma_buffer(0,ADC2_IDX) != 0) {
-	  		printf("Processing ADC2 DMA 1st half failed\r\n");
+	  		term_print("Processing ADC2 DMA 1st half failed\r\n");
 	  	  }
 	  	  adc2_dma_l_count--;
 	  }
 	  if (adc2_dma_h_count > 0) {
 	  	  if (calc_process_dma_buffer(1,ADC2_IDX) != 0) {
-	  		printf("Processing ADC2 DMA 2nd half failed\r\n");
+	  		term_print("Processing ADC2 DMA 2nd half failed\r\n");
 	  	  }
 	   	  adc2_dma_h_count--;
 	  }
@@ -736,24 +734,24 @@ void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
 	}
 	switch (hadc->ErrorCode) {
 	case HAL_ADC_ERROR_NONE:
-		printf("ADC%d No Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
+		term_print("ADC%d No Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
 		break;
 	case HAL_ADC_ERROR_INTERNAL:
-		printf("ADC%d Internal Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
+		term_print("ADC%d Internal Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
 		break;
 	case HAL_ADC_ERROR_OVR:
-		printf("ADC%d Overrun Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
+		term_print("ADC%d Overrun Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
 		break;
 	case HAL_ADC_ERROR_DMA:
-		printf("ADC%d DMA Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
+		term_print("ADC%d DMA Error (0x%08lx)\r\n", adc_num, hadc->ErrorCode);
 		break;
 #if (USE_HAL_ADC_REGISTER_CALLBACKS == 1)
 	case HAL_ADC_ERROR_INVALID_CALLBACK:
-		printf("ADC%d Callback Error (0x%08lx)  [%d]\r\n", adc_num, hadc->ErrorCode);
+		term_print("ADC%d Callback Error (0x%08lx)  [%d]\r\n", adc_num, hadc->ErrorCode);
 		break;
 #endif /* USE_HAL_ADC_REGISTER_CALLBACKS */
 	default:
-		printf("ADC Unknown Error: 0x%08lx\r\n", hadc->ErrorCode);
+		term_print("ADC Unknown Error: 0x%08lx\r\n", hadc->ErrorCode);
 	}
 }
 
