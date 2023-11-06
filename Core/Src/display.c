@@ -5,6 +5,9 @@
  *      Author: eb
  *
  *  Handles all display related functions
+ *
+ *  Note: The ILI9xxx display Y axis (vertical) 0 pixel is at the top of the display
+ *  so X:0 Y:0 describes the left had top corner of the display
  */
 
 #include "main.h"
@@ -32,10 +35,10 @@ void display_show_curve(uint8_t buf_num) {
 	int value = 0, pos_y;
 	int adc_index = 1;
 	int max_x = ADC_NUM_DATA / 2;
-	int pos_y_prev = (((adc_raw_buf[buf_num][0] + adc_raw_buf[buf_num][1]) / 2) * scale_mul)/scale_div + y_offset ;
+	int pos_y_prev = DISPLAY_Y - ((((adc_raw_buf[buf_num][0] + adc_raw_buf[buf_num][1]) / 2) * scale_mul)/scale_div + y_offset) ;
 	for (int pos_x=1; pos_x < max_x; pos_x++) {
 		value = (adc_raw_buf[buf_num][adc_index] + adc_raw_buf[buf_num][adc_index-1] + adc_raw_buf[buf_num][adc_index+1]) / 3;
-		pos_y = (value * scale_mul)/scale_div + y_offset;
+		pos_y = DISPLAY_Y - ((value * scale_mul)/scale_div + y_offset);
 		adc_index+=2;
 		Displ_Line(pos_x - 1, pos_y_prev, pos_x, pos_y, GREEN);
 		pos_y_prev = pos_y;

@@ -100,6 +100,19 @@ static void MX_SPI2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void start_adcs() {
+	// Start ADC1 - keeps running via TIM2
+	  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
+		  term_print("Error starting ADC1 DMA\r\n");
+	  	  Error_Handler();
+	  }
+	  //Start ADC2 - keeps running via TIM2
+	  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
+		  term_print("Error starting ADC2 DMA\r\n");
+	   	  Error_Handler();
+	  }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -148,6 +161,9 @@ int main(void)
 
   Displ_Line(0, 160, 479, 160, BLUE);
   Displ_Line(0, 140, 240, 140, RED);
+  Displ_WString(10, 10, "10,10" , Font20, 1, RED, WHITE);
+  Displ_WString(380, 10, "380,10" , Font20, 1, RED, WHITE);
+  Displ_WString(10, 300, "10,300" , Font20, 1, RED, WHITE);
 
 
   // Start UART receive via interrupt
@@ -160,16 +176,7 @@ int main(void)
      Error_Handler();
   }
 
-  // Start ADC1 - keeps running via TIM2
-  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-	  term_print("Error starting ADC1 DMA\r\n");
-  	  Error_Handler();
-  }
-  //Start ADC2 - keeps running via TIM2
-  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-	  term_print("Error starting ADC2 DMA\r\n");
-   	  Error_Handler();
-  }
+  start_adcs();
 
   // Startup success message
    if (HAL_UART_Transmit(&huart2, startup_msg, sizeof(startup_msg), 1000) != HAL_OK) {
@@ -196,13 +203,7 @@ int main(void)
 
 	  if (adc_restart) {
 		  adc_restart = 0;
-		  //HAL_ADC_Start_IT (&hadc1);
-		  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-			term_print("Error re-starting ADC1 DMA\r\n");
-		  }
-		  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-			  term_print("Error re-starting ADC2 DMA\r\n");
-		  }
+		  start_adcs();
 	  }
 
 	  if (show_buffer) {
