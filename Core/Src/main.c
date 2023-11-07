@@ -26,7 +26,9 @@
 #include "term.h"
 #include "cmd.h"
 #include "calc.h"
+#ifdef USE_DISPLAY
 #include "display.h"
+#endif
 
 /* USER CODE END Includes */
 
@@ -77,9 +79,8 @@ __IO int32_t adc1_dma_h_count = 0;
 __IO int32_t adc2_dma_l_count = 0;
 __IO int32_t adc2_dma_h_count = 0;
 
-__IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// 2 arrays, one per ADC containing 2 channels
-//__IO uint16_t adc2_dma_buf[ADC_DMA_BUF_SIZE];		// written by DMA
-uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
+__IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// one DMA buffer for each ADC (contains both channels)
+uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
@@ -151,20 +152,10 @@ int main(void)
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
-
+#ifdef USE_DISPLAY
   // TFT Display
-  Displ_BackLight('1');
-  Displ_Init(Displ_Orientat_90);		// initialize the display and set the initial display orientation (here is orientaton: 0°) - THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
-  //term_print("Displ_Init - done\r\n");
-  Displ_CLS(BLACK);			// after initialization (above) and before turning on backlight (below), you can draw the initial display appearance.
-  //term_print("Displ_CLS - done\r\n");
-
-  Displ_Line(0, 160, 479, 160, BLUE);
-  Displ_Line(0, 140, 240, 140, RED);
-  Displ_WString(10, 10, "10,10" , Font20, 1, RED, WHITE);
-  Displ_WString(380, 10, "380,10" , Font20, 1, RED, WHITE);
-  Displ_WString(10, 300, "10,300" , Font20, 1, RED, WHITE);
-
+  Displ_Init(Displ_Orientat_90); // initialize the display and set the initial display orientation (90°) - THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
+#endif
 
   // Start UART receive via interrupt
   if (HAL_UART_Receive_IT(&huart2, (uint8_t*)&rx_byte, 1) != HAL_OK) {
@@ -176,7 +167,19 @@ int main(void)
      Error_Handler();
   }
 
+  // Start ADCs
   start_adcs();
+
+#ifdef USE_DISPLAY
+  // Draw initial TFT Display
+  Displ_CLS(BLACK);			// after initialization (above) and before turning on backlight (below), you can draw the initial display appearance.
+  Displ_Line(0, 160, 479, 160, BLUE);
+  Displ_Line(0, 140, 240, 140, RED);
+  Displ_WString(10, 10, "10,10" , Font20, 1, RED, WHITE);
+  Displ_WString(380, 10, "380,10" , Font20, 1, RED, WHITE);
+  Displ_WString(10, 300, "10,300" , Font20, 1, RED, WHITE);
+  Displ_BackLight('1');
+#endif
 
   // Startup success message
    if (HAL_UART_Transmit(&huart2, startup_msg, sizeof(startup_msg), 1000) != HAL_OK) {
@@ -210,15 +213,15 @@ int main(void)
 		  calc_show_buffer(show_buffer-1);
 		  show_buffer = 0;
 	  }
+	  if (csv_buffer) {
+  	  	  calc_csv_buffer(csv_buffer-1);
+	  	  csv_buffer = 0;
+	  }
 
+#ifdef USE_DISPLAY
 	  if (cmd_display_buffer) {
 		  display_show_curve(cmd_display_buffer-1);
 	  	  cmd_display_buffer = 0;
-	  }
-
-	  if (csv_buffer) {
-	  	  calc_csv_buffer(csv_buffer-1);
-	  	  csv_buffer = 0;
 	  }
 
 	  if (tft_display) {
@@ -238,6 +241,7 @@ int main(void)
 		  }
 		  tft_display = 0;
 	  }
+#endif
 
 	  if (led_cmd) {
 		  if (led_cmd > 1) {

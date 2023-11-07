@@ -15,6 +15,9 @@ struct rawBufMeta {
 	int zero_cross2;
 };
 
+// line below controls TFT display usage
+#define USE_DISPLAY
+
 #define DISPLAY_X DISPL_HEIGHT	// 480
 #define DISPLAY_Y DISPL_WIDTH	// 320
 
@@ -26,24 +29,33 @@ struct rawBufMeta {
 #define ADC1_IDX 0			// ADC1 index for arrays
 #define ADC2_IDX 1			// ADC2 index for arrays
 
+#define ADC_NUM_CHANNELS 2								// number of channels per ADC
+#define ADC_NUM_BUFFERS	ADC_NUM * ADC_NUM_CHANNELS		// we need one buffer per channel
+
+#define ADC_NUM_DATA 840U		// number of data points to record for each channel
+
+
+// 2 DMA buffers (one per ADC) contain both channels, need space for 2 lots
+#define ADC_DMA_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS * 2	// size of each DMA buffer which contains 2 sets of data
+
 #define ADC_CH_V 0
 #define ADC_CH_I1 1
 /*
  * DMA buffer definition
  * The DMA buffer contains one int16 entry per ADC reading
- * The sequence order is: CH1, CH2, CH1, CH2, CH1, CH2
- * 800 recording for 2 channel require 1600 entries
+ * The sequence order is: CH1, CH2, CH1, CH2, CH1, CH2, ....
+ * 800 recordings for 2 channel require 1600 entries
  * The complete DMA buffer stores 2 sets of recordings
- * Our code received a callback after the first half of the DMA
+ * Our code receives a callback after the first half of the DMA
  * buffer is filled so it can process that data while the DMA fills the
  * second half.
  * Sampling at 40kHzA a full sine wave (20ms) contains 800 samples
  * one sample is taken every 25us or every 0.45 Degrees
  */
-#define ADC_NUM_CHANNELS 2	// number of channels to convert (on one ADC)
-#define ADC_NUM_DATA 840U		// number of data points to record
-#define ADC_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS // buffer size
-#define ADC_DMA_BUF_SIZE ADC_BUF_SIZE * 2	// DMA buffer contains 2 sets of data
+
+
+//#define ADC_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS // buffer size
+//#define ADC_DMA_BUF_SIZE ADC_BUF_SIZE * 2	// DMA buffer contains 2 sets of data
 
 #define MAX(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
 #define MIN(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })

@@ -38,8 +38,8 @@ int calc_process_dma_buffer(int second_half, int adc_num) {
 		return -1;
 	}
 	// channel index to raw buffer array
-	raw_buf_first = adc_num *2;			// destination index for first entry in DMA buffer
-	raw_buf_second = raw_buf_first + 1; // destination index for second entry in DMA buffer
+	raw_buf_first = adc_num *2;			// destination index for first channel reading in DMA buffer
+	raw_buf_second = raw_buf_first + 1; // destination index for second channel reading in DMA buffer
 	// first or second half of DMA buffer?
 	if (second_half) {
 		dma_buf_start = ADC_DMA_BUF_SIZE / 2;

@@ -10,6 +10,7 @@
 #include "stm32f4xx_hal.h"
 #include <stdio.h>
 #include <string.h>
+#include "global.h"
 #include "cmd.h"
 #include "term.h"
 
@@ -54,7 +55,9 @@ int cmd_t(uint8_t* cmd_str) {
 int cmd_help(void) {
 	term_print("\r\nCommand Help:\r\n");
 	term_print("C[1..4]: CSV output ADC channel 1 - 4 buffer content\r\n");
+#ifdef USE_DISPLAY
 	term_print("D[1..4]: Display ADC channel 1 - 4 on TFT display\r\n");
+#endif
 	term_print("S[1..4]: Show ADC channel 1 - 4 buffer content in terminal\r\n");
 	term_print("R: Restart ADC conversion\r\n");
 	term_print("T[0|1|T]: TFT display OFF / ON / Performance test\r\n");
@@ -70,11 +73,13 @@ int cmd_process(uint8_t* cmd_str) {
 		csv_buffer = cmd_str[1] - 0x30;
 		retval = 0;
 		break;
+#ifdef USE_DISPLAY
 	case 'D':
 	case 'd':
 		cmd_display_buffer = cmd_str[1] - 0x30;
 		retval = 0;
 		break;
+#endif
 	case 'L':
 	case 'l':
 		led_cmd = cmd_str[1] - 0x30 + 1;

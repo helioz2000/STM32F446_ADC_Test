@@ -1,1 +1,2 @@
-../Core/Src/display.c:22:6:display_show_curve	72	static
+../Core/Src/display.c:26:6:draw_curve	40	static
+../Core/Src/display.c:37:6:display_show_curve	56	static
