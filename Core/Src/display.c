@@ -17,7 +17,8 @@
 
 #define ADC_MAX 4095
 
-extern uint16_t adc_raw_buf[][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
+extern uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
+extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for 4 channels of downsampled data
 extern struct rawBufMeta adc_raw_meta[];
 
 uint16_t channel_colour[4] = { YELLOW, CYAN, GREEN, ORANGE};
@@ -92,29 +93,25 @@ void display_show_curve(uint8_t bufnum) {
 	// set multiplier and divider to ensure the function can handle a wide range of values
 	if (fScale < 1) {
 		// calculate start of first line
-		curve_y[0] = y_max - (((adc_raw_buf[bufnum][0] + adc_raw_buf[bufnum][1]) / 2) / scale_factor + y_offset) ;
-		for (int pos_x=1; pos_x < ADC_NUM_DATA / 2; pos_x++) {
-			// calculate reading value by averaging 3 readings (the one before and the one after)
-			value = (adc_raw_buf[bufnum][buf_index] + adc_raw_buf[bufnum][buf_index-1] + adc_raw_buf[bufnum][buf_index+1]) / 3;
+		curve_y[0] = y_max - (sample_buf[bufnum][0] / scale_factor + y_offset) ;
+		for (int pos_x=1; pos_x < SAMPLE_BUF_SIZE; pos_x++) {
 			// calculate reading pixel on display using the scale value
-			curve_y[pos_x] = y_max - (value / scale_factor + y_offset);
+			curve_y[pos_x] = y_max - (sample_buf[bufnum][pos_x] / scale_factor + y_offset);
 			// advance readings buffer by twice
 			buf_index+=2;
 		}
 	} else {
 		// calculate start of first line
-		curve_y[0] = y_max - (((adc_raw_buf[bufnum][0] + adc_raw_buf[bufnum][1]) / 2) * scale_factor + y_offset) ;
-		for (int pos_x=1; pos_x < ADC_NUM_DATA / 2; pos_x++) {
-			// calculate reading value by averaging 3 readings (the one before and the one after)
-			value = (adc_raw_buf[bufnum][buf_index] + adc_raw_buf[bufnum][buf_index-1] + adc_raw_buf[bufnum][buf_index+1]) / 3;
+		curve_y[0] = y_max - (sample_buf[bufnum][0] * scale_factor + y_offset) ;
+		for (int pos_x=1; pos_x < SAMPLE_BUF_SIZE; pos_x++) {
 			// calculate reading pixel on display using the scale value
-			curve_y[pos_x] = y_max - value * scale_factor + y_offset;
+			curve_y[pos_x] = y_max - sample_buf[bufnum][pos_x] * scale_factor + y_offset;
 			// advance readings buffer by twice
 			buf_index+=2;
 		}
 	}
 
-	curve_len = ADC_NUM_DATA / 2;
+	curve_len = SAMPLE_BUF_SIZE;
 	draw_curve(channel_colour[bufnum]);
 	lastbuf = bufnum;
 }

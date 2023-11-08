@@ -32,8 +32,8 @@ struct rawBufMeta {
 #define ADC_NUM_CHANNELS 2								// number of channels per ADC
 #define ADC_NUM_BUFFERS	ADC_NUM * ADC_NUM_CHANNELS		// we need one buffer per channel
 
-#define ADC_NUM_DATA 840U		// number of data points to record for each channel
-
+#define ADC_NUM_DATA 840U		   			// number of data points to record for each channel
+#define SAMPLE_BUF_SIZE ADC_NUM_DATA / 2	// number of data points after downsampling
 
 // 2 DMA buffers (one per ADC) contain both channels, need space for 2 lots
 #define ADC_DMA_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS * 2	// size of each DMA buffer which contains 2 sets of data

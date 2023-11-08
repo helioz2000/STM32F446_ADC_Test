@@ -16,7 +16,8 @@
 extern uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];
 //extern uint16_t adc2_dma_buf[];
 
-extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
+extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for 4 channels of raw ADC data
+extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for 4 channels of downsampled data
 struct rawBufMeta adc_raw_meta[ADC_NUM*ADC_NUM_CHANNELS];			// store meta data for associated buffer
 
 //inline int16_t MAX(int16_t a, int16_t b) { return((a) > (b) ? a : b); }
@@ -24,9 +25,18 @@ struct rawBufMeta adc_raw_meta[ADC_NUM*ADC_NUM_CHANNELS];			// store meta data f
 
 /*
  * Process the DMA buffer
+ *
  * parameter second_half: > 0 to process 2nd half of buffer, 0 = 1st half of buffer
  * parameter adc_num: 0 = ADC1, 1 = ADC2 (use ADC1_IDX or ADC2_IDX)
  * returns: -1 on failure, 0 if OK
+ * Split the multi channel readings from the DMA buffer into adc_raw_buf which is
+ * structured to hold the readings for one channel per array element.
+ * This function also establishes the min/max values for each channel
+ * Note: Each ADC is assigned one DMA buffer.
+ * One DMA buffer contains 2 data sets, one which is "completed" and
+ * one which is currently in use by DMA. The parameter "second_half" indicates which
+ * of the two halves is ready for processing (not in use by DMA).
+ * The DMA buffer is made up of a sequence of alternate readings (CH0,CH1,CH0,CH1, ....)
  */
 int calc_process_dma_buffer(int second_half, int adc_num) {
 	uint16_t i = 0;
@@ -66,9 +76,29 @@ int calc_process_dma_buffer(int second_half, int adc_num) {
 		adc_raw_meta[raw_buf_second].min = MIN(adc_raw_meta[raw_buf_second].min, adc_dma_buf[adc_num][i+1]);
 		adc_raw_meta[raw_buf_second].max = MAX(adc_raw_meta[raw_buf_second].max, adc_dma_buf[adc_num][i+1]);
 	}
+	calc_downsample(raw_buf_first);
+	calc_downsample(raw_buf_second);
 	return 0;
 }
 
+/*
+ * Downsample ADC raw readings into sample buffer
+ * This function provides a filter for the raw ADC readings. It halves
+ * the number of samples and averages adjoining samples to smooth out peaks
+ */
+void calc_downsample(uint8_t bufnum) {
+	uint16_t value;
+	uint16_t dest_idx=0;
+	if (bufnum >= ADC_NUM_BUFFERS) { return; }
+	for (int i=1; i < ADC_NUM_DATA; i+=2) {
+		// calculate reading value by averaging 3 readings (the one before and the one after)
+		sample_buf[bufnum][dest_idx++] = (adc_raw_buf[bufnum][i] + adc_raw_buf[bufnum][i-1] + adc_raw_buf[bufnum][i+1]) / 3;
+	}
+}
+
+/*
+ * Show the adc_raw_buf contents in terminal
+ */
 void calc_show_buffer(uint8_t buf_num) {
 	int count = 0;
 	uint16_t address = 0;
@@ -77,7 +107,7 @@ void calc_show_buffer(uint8_t buf_num) {
 	uint8_t gt_zero_count = 0, lt_zero_count = 0;
 	//uint16_t adc_raw_min = adc_raw_buf[buf_num][0];
 	//uint16_t adc_raw_max = adc_raw_min;
-	if (buf_num > 3) { return; }
+	if (buf_num >= ADC_NUM_BUFFERS) { return; }
 	term_print("Buffer %d\r\n", buf_num);
 	term_print("%3d: ", 0);
 	for (int i=0; i<ADC_NUM_DATA; i++) {
@@ -97,6 +127,9 @@ void calc_show_buffer(uint8_t buf_num) {
 
 }
 
+/*
+ * Output adc_raw_buf contents in CSV format to terminal
+ */
 void calc_csv_buffer(uint8_t buf_num) {
 	if (buf_num > 3) { return; }
 	term_print("Buffer %d\r\n", buf_num);
@@ -114,6 +147,9 @@ int calc_adc_raw_to_mv_int(uint16_t adc_raw) {
 	return round(calc_adc_raw_to_mv_float(adc_raw));
 }
 
+/*
+ * Convert raw reading to mV
+ */
 float calc_adc_raw_to_mv_float(uint16_t adc_raw) {
 	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_MV;
 }

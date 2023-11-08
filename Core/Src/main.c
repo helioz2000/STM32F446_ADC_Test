@@ -81,6 +81,7 @@ __IO int32_t adc2_dma_h_count = 0;
 
 __IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// one DMA buffer for each ADC (contains both channels)
 uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
+uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];		// buffer for 4 channels of downsampled data
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
