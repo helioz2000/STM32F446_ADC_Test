@@ -150,8 +150,8 @@ void calc_zero_detector(uint8_t bufnum, int zeropoint, int window) {
 		}	// if inside window
 	}	// for in buffer
 
-	// check how many crossings were detected
-	if (detect_count > 2) {
+	// check how many crossings were detected, we could have up to 3
+	if (detect_count > 3) {
 		// if we have more than 2 crossings the crossing detections are marked invalid
 		sample_buf_meta[bufnum].zero_cross_neg = -9;
 		sample_buf_meta[bufnum].zero_cross_pos = -9;
@@ -168,13 +168,19 @@ void calc_downsample(uint8_t bufnum) {
 	uint16_t range;
 	uint16_t dest_idx=0;
 	if (bufnum >= ADC_NUM_BUFFERS) { return; }
-	for (int i=1; i < ADC_NUM_DATA; i+=2) {
+	for (int i=1; i < ADC_NUM_DATA-2; i+=2) {
 		// calculate reading value by averaging 3 readings (the one before and the one after)
 		sample_buf[bufnum][dest_idx] = (adc_raw_buf[bufnum][i] + adc_raw_buf[bufnum][i-1] + adc_raw_buf[bufnum][i+1]) / 3;
 		// track min/max values
 		sample_buf_meta[bufnum].min = MIN(sample_buf_meta[bufnum].min, sample_buf[bufnum][dest_idx]);
 		sample_buf_meta[bufnum].max = MAX(sample_buf_meta[bufnum].max, sample_buf[bufnum][dest_idx]);
 		dest_idx++;
+	}
+	// Last sample in the buffer (we only have 2 raw readings available for averaging)
+	sample_buf[bufnum][dest_idx++] = (adc_raw_buf[bufnum][ADC_NUM_DATA-1] + adc_raw_buf[bufnum][ADC_NUM_DATA-2]) / 2;
+	// test if the last value is not assigned
+	if (dest_idx < SAMPLE_BUF_SIZE) {
+		sample_buf[bufnum][dest_idx] = 0;
 	}
 	// range of readings
 	range = sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min;
@@ -189,26 +195,26 @@ void calc_show_buffer(uint8_t buf_num) {
 	int count = 0;
 	uint16_t address = 0;
 	uint64_t squared_acc = 0;
-	uint16_t rms_value, adc_raw;
-	//uint16_t adc_raw_min = adc_raw_buf[buf_num][0];
-	//uint16_t adc_raw_max = adc_raw_min;
+	uint16_t rms_value;
+
 	if (buf_num >= ADC_NUM_BUFFERS) { return; }
 	term_print("Buffer %d\r\n", buf_num);
 	term_print("%3d: ", 0);
-	for (int i=0; i<ADC_NUM_DATA; i++) {
+	for (int i=0; i<SAMPLE_BUF_SIZE; i++) {
 		if (count >= 20) {
 			count =0;
 			term_print("\r\n%3d: ", address);
 		}
-		adc_raw = adc_raw_buf[buf_num][i];
-		term_print("%04u ", adc_raw);
+		term_print("%04u ", sample_buf[buf_num][i]);
 
-		squared_acc += adc_raw_buf[buf_num][i] * adc_raw_buf[buf_num][i];
+		squared_acc += sample_buf[buf_num][i] * adc_raw_buf[buf_num][i];
 		count++; address++;
 	}
-	rms_value = (uint16_t) sqrt((squared_acc / ADC_NUM_DATA));
+	// RMS is wrong - needs to measure only one half of sine wave
+	rms_value = (uint16_t) sqrt((squared_acc / SAMPLE_BUF_SIZE));
 	term_print("\r\nMin: %dmV Max: %dmV ", calc_adc_raw_to_mv_int(sample_buf_meta[buf_num].min), calc_adc_raw_to_mv_int(sample_buf_meta[buf_num].max) );
 	term_print("RMS: %dmV [%u]\r\n", calc_adc_raw_to_mv_int(rms_value), rms_value);
+	term_print("\r\nMin: %d Max: %d ", sample_buf_meta[buf_num].min, sample_buf_meta[buf_num].max );
 	term_print("Zero crossing: pos=%d neg=%d\r\n", sample_buf_meta[buf_num].zero_cross_pos, sample_buf_meta[buf_num].zero_cross_neg);
 
 }
