@@ -8,11 +8,11 @@
 #ifndef INC_GLOBAL_H_
 #define INC_GLOBAL_H_
 
-struct rawBufMeta {
-	uint16_t min;
-	uint16_t max;
-	int zero_cross1;
-	int zero_cross2;
+struct sampleBufMeta {
+	uint16_t min;			// minimum value in buffer
+	uint16_t max;			// maximum value in buffer
+	int zero_cross_pos;		// positive slope crossing, -1 = uninitialized, -9 = zero detection error
+	int zero_cross_neg;		// negative slope crossing
 };
 
 // line below controls TFT display usage

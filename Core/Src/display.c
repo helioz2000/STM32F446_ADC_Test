@@ -19,7 +19,7 @@
 
 extern uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for 4 channels of downsampled data
-extern struct rawBufMeta adc_raw_meta[];
+extern struct sampleBufMeta sample_buf_meta[];
 
 uint16_t channel_colour[4] = { YELLOW, CYAN, GREEN, ORANGE};
 uint16_t curve_y[DISPLAY_X];	// store the curve before drawing, enables overwrite on next curve
@@ -51,13 +51,13 @@ void display_show_curve(uint8_t bufnum) {
 	int y_grid_25 = 0;
 
 	int scale_factor = 1;
-	float fScale = (float)DISPLAY_Y / (float)adc_raw_meta[bufnum].max;
+	float fScale = (float)DISPLAY_Y / (float)sample_buf_meta[bufnum].max;
 	if (fScale < 1) {
 		scale_factor = trunc(1/fScale)+1; // divisor
-		value = adc_raw_meta[bufnum].max / scale_factor;
+		value = sample_buf_meta[bufnum].max / scale_factor;
 	} else {
 		scale_factor = trunc(fScale);	// multiplier
-		value = adc_raw_meta[bufnum].max * scale_factor;
+		value = sample_buf_meta[bufnum].max * scale_factor;
 	}
 	y_grid_100 = y_max - value + y_offset;
 	y_grid_50 = y_max - value/2 + y_offset;
@@ -79,10 +79,10 @@ void display_show_curve(uint8_t bufnum) {
 	Displ_Line(0, DISPLAY_Y-1, x_max, DISPLAY_Y-1, WHITE);	// Zero
 
 	// Display grid values
-	snprintf(str,32,"%d",calc_adc_raw_to_mv_int(adc_raw_meta[bufnum].max));
+	snprintf(str,32,"%d",calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max));
 	value = Font16.Width * strlen(str);
 	Displ_WString(x_max, y_grid_100, str , Font16, 1, BLACK, WHITE);
-	snprintf(str,32,"%d",calc_adc_raw_to_mv_int(adc_raw_meta[bufnum].max/2));
+	snprintf(str,32,"%d",calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max/2));
 	value = Font16.Width * strlen(str);
 	Displ_WString(x_max, y_grid_50-Font16.Height/2, str , Font16, 1, BLACK, WHITE);
 	Displ_WString(x_max, DISPLAY_Y-Font16.Height, "0" , Font16, 1, BLACK, WHITE);
