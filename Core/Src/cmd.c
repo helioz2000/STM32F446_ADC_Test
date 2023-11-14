@@ -25,6 +25,7 @@ extern uint8_t cmd_display_buffer;
 extern uint8_t csv_buffer;
 extern uint8_t led_cmd;
 extern uint8_t tft_display;
+extern uint16_t new_time_period;
 
 uint8_t cmd_len = 0;
 
@@ -51,6 +52,15 @@ int cmd_t(uint8_t* cmd_str) {
 	return -1;
 }
 
+// adjust timer period
+int cmd_p(uint8_t* cmd_str) {
+	unsigned int value;
+	int result = sscanf((char*)cmd_str+1, "%u", &value);
+	if (result != 1) return -1;
+	new_time_period = value;
+	return 0;
+}
+
 
 int cmd_help(void) {
 	term_print("\r\nCommand Help:\r\n");
@@ -58,10 +68,11 @@ int cmd_help(void) {
 #ifdef USE_DISPLAY
 	term_print("D[1..4]: Display ADC channel 1 - 4 on TFT display\r\n");
 #endif
-	term_print("S[1..4]: Show ADC channel 1 - 4 buffer content in terminal\r\n");
-	term_print("R: Restart ADC conversion\r\n");
-	term_print("T[0|1|T]: TFT display OFF / ON / Performance test\r\n");
 	term_print("L[0,1]: LED L2 OFF / ON\r\n");
+	term_print("P[2000..2500]: adjust timer value for sample time\r\n");
+	term_print("R: Restart ADC conversion\r\n");
+	term_print("S[1..4]: Show ADC channel 1 - 4 buffer content in terminal\r\n");
+	term_print("T[0|1|T]: TFT display OFF / ON / Performance test\r\n");
 	return 0;
 }
 
@@ -84,6 +95,10 @@ int cmd_process(uint8_t* cmd_str) {
 	case 'l':
 		led_cmd = cmd_str[1] - 0x30 + 1;
 		retval = 0;
+		break;
+	case 'P':
+	case 'p':
+		retval = cmd_p(cmd_str);
 		break;
 	case 'R':
 	case 'r':

@@ -61,7 +61,7 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t startup_msg[] = "Startup Success\r\n";
+uint8_t startup_msg[] = "\r\nPM1 - Initialized OK\r\n";
 uint16_t rx_count = 0;
 uint8_t rx_byte;
 uint8_t rx_buff[20];
@@ -73,6 +73,7 @@ uint8_t cmd_display_buffer = 0;
 uint8_t csv_buffer = 0;
 uint8_t led_cmd = 0;
 uint8_t tft_display = 0;
+uint16_t new_time_period = 0;
 
 __IO int32_t adc1_dma_l_count = 0;
 __IO int32_t adc1_dma_h_count = 0;
@@ -104,15 +105,47 @@ static void MX_SPI2_Init(void);
 
 void start_adcs() {
 	// Start ADC1 - keeps running via TIM2
-	  if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-		  term_print("Error starting ADC1 DMA\r\n");
-	  	  Error_Handler();
-	  }
-	  //Start ADC2 - keeps running via TIM2
-	  if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
-		  term_print("Error starting ADC2 DMA\r\n");
-	   	  Error_Handler();
-	  }
+	if ( HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf[ADC1_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
+	  term_print("Error starting ADC1 DMA\r\n");
+  	  Error_Handler();
+	}
+	//Start ADC2 - keeps running via TIM2
+	if ( HAL_ADC_Start_DMA(&hadc2, (uint32_t*)adc_dma_buf[ADC2_IDX], ADC_DMA_BUF_SIZE) != HAL_OK) {
+	  term_print("Error starting ADC2 DMA\r\n");
+ 	  Error_Handler();
+	}
+}
+
+/*
+ * Change TIM2 Period value (ARR) for timer tuning with oscilloscope
+ * This function is used in conjunction with the debug GPIO to tune each individual
+ * board to produce 25us signal which is shown on the oscilloscope
+ * as a 20kHz square wave (period 50us) as the signal changes
+ * with every TIM2 call
+ */
+void adjust_TIM2_period(uint16_t newPeriod, uint8_t store) {
+	if ( (newPeriod > 2500) || (newPeriod < 2000) ) {
+		term_print("Invalid period for TIM (%u)\r\n", newPeriod);
+		return;
+	}
+	TIM2->ARR = (uint32_t) newPeriod;	// change register directly
+	term_print("TIM2 ARR = %u\r\n", newPeriod);
+	/*
+	if (store) {
+		// Store new value in Flash memory
+		HAL_FLASH_Unlock();
+		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, EEPROM_USER_START_ADDR, (uint64_t)newPeriod);
+		HAL_FLASH_Lock();
+		er = HAL_FLASH_GetError();
+		if (er !=0) {
+			term_print("Flash Error Code: %Xu\r\n", er);
+		}
+		if (result != HAL_OK) {
+			term_print("EEPROM write failed\r\n");
+		} else {
+			term_print("EEPROM write %u\r\n", newPeriod);
+		}
+	}*/
 }
 
 /* USER CODE END 0 */
@@ -183,9 +216,11 @@ int main(void)
 #endif
 
   // Startup success message
-   if (HAL_UART_Transmit(&huart2, startup_msg, sizeof(startup_msg), 1000) != HAL_OK) {
+  if (HAL_UART_Transmit(&huart2, startup_msg, sizeof(startup_msg), 1000) != HAL_OK) {
     Error_Handler();
   }
+  // Show active TIM2 configuration (for 25us ADC trigger)
+  term_print("TIM2 ARR = %d\r\n",TIM2->ARR);
 
   /* USER CODE END 2 */
 
@@ -217,6 +252,12 @@ int main(void)
 	  if (csv_buffer) {
   	  	  calc_csv_buffer(csv_buffer-1);
 	  	  csv_buffer = 0;
+	  }
+
+	  if (new_time_period) {
+		  // change timer period to new value
+		  adjust_TIM2_period(new_time_period, 1);
+		  new_time_period = 0;
 	  }
 
 #ifdef USE_DISPLAY

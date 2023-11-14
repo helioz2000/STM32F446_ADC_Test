@@ -1,5 +1,6 @@
-../Core/Src/cmd.c:31:6:cmd_error	16	static
-../Core/Src/cmd.c:36:5:cmd_t	16	static
-../Core/Src/cmd.c:55:5:cmd_help	8	static
-../Core/Src/cmd.c:68:5:cmd_process	24	static
-../Core/Src/cmd.c:113:5:CMD_Handler	16	static
+../Core/Src/cmd.c:32:6:cmd_error	16	static
+../Core/Src/cmd.c:37:5:cmd_t	16	static
+../Core/Src/cmd.c:56:5:cmd_p	24	static
+../Core/Src/cmd.c:65:5:cmd_help	8	static
+../Core/Src/cmd.c:79:5:cmd_process	24	static
+../Core/Src/cmd.c:128:5:CMD_Handler	16	static

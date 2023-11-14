@@ -22,7 +22,7 @@ A custom PCB will be connected to the Nucleo development board. The PCB will hou
 - TIM2 - APB1 - 90MHz CLK = 11.11111ns / pulse
 - PSC 0 (No prescale)
 - ARR 2250 = 25us (theoretically)
-- The test board requires ARR 2286 to achieve 25us (91.45MHz)
+- The first test board requires ARR 2286  (91.45MHz), the second board ARR is 2275 to achieve 25us.
 
 ADC measurement every 25us allows for 800 measurements per 20ms (one 50Hz cycle) providing a resolution better than 0.5 degrees of phase.
 
