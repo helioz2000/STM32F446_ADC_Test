@@ -1,7 +1,8 @@
-../Core/Src/calc.c:41:5:calc_process_dma_buffer	5
-../Core/Src/calc.c:99:6:calc_zero_detector	20
-../Core/Src/calc.c:167:6:calc_downsample	4
-../Core/Src/calc.c:194:6:calc_show_buffer	4
-../Core/Src/calc.c:225:6:calc_csv_buffer	3
-../Core/Src/calc.c:238:5:calc_adc_raw_to_mv_int	1
-../Core/Src/calc.c:245:7:calc_adc_raw_to_mv_float	1
+../Core/Src/calc.c:43:5:calc_process_dma_buffer	5
+../Core/Src/calc.c:103:6:calc_zero_detector	20
+../Core/Src/calc.c:171:6:calc_downsample	4
+../Core/Src/calc.c:198:6:calc_show_buffer	5
+../Core/Src/calc.c:224:6:calc_csv_buffer	3
+../Core/Src/calc.c:241:5:calc_rms	7
+../Core/Src/calc.c:277:5:calc_adc_raw_to_mv_int	1
+../Core/Src/calc.c:284:7:calc_adc_raw_to_mv_float	1

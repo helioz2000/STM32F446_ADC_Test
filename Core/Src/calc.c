@@ -16,15 +16,17 @@
 extern uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];
 //extern uint16_t adc2_dma_buf[];
 
-extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for 4 channels of raw ADC data
-extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for 4 channels of down-sampled data
+extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
+extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
 struct sampleBufMeta sample_buf_meta[ADC_NUM_BUFFERS];					// store meta data for associated buffer
+
+int calc_rms(uint8_t bufnum);
 
 //inline int16_t MAX(int16_t a, int16_t b) { return((a) > (b) ? a : b); }
 //inline int16_t MIN(int16_t a, int16_t b) { return((a) < (b) ? a : b); }
 
 /*
- * Process the DMA buffer
+ * Process the DMA buffer and perform down-sample
  *
  * parameter second_half: > 0 to process 2nd half of buffer, 0 = 1st half of buffer
  * parameter adc_num: 0 = ADC1, 1 = ADC2 (use ADC1_IDX or ADC2_IDX)
@@ -67,6 +69,8 @@ int calc_process_dma_buffer(int second_half, int adc_num) {
 	sample_buf_meta[raw_buf_first].zero_cross_neg = -1;
 	sample_buf_meta[raw_buf_second].zero_cross_pos = -1;
 	sample_buf_meta[raw_buf_second].zero_cross_neg = -1;
+	sample_buf_meta[raw_buf_first].rms_value = -1;
+	sample_buf_meta[raw_buf_second].rms_value = -1;
 
 	// split DMA buffer in to channels and copy readings into raw buffers
 	// step of ADC_NUM_CHANNELS = 2
@@ -191,31 +195,26 @@ void calc_downsample(uint8_t bufnum) {
 /*
  * Show the adc_raw_buf contents in terminal
  */
-void calc_show_buffer(uint8_t buf_num) {
+void calc_show_buffer(uint8_t bufnum) {
 	int count = 0;
 	uint16_t address = 0;
-	uint64_t squared_acc = 0;
-	uint16_t rms_value;
 
-	if (buf_num >= ADC_NUM_BUFFERS) { return; }
-	term_print("Buffer %d\r\n", buf_num);
+	if (bufnum >= ADC_NUM_BUFFERS) { return; }
+	term_print("Buffer %d\r\n", bufnum);
 	term_print("%3d: ", 0);
 	for (int i=0; i<SAMPLE_BUF_SIZE; i++) {
 		if (count >= 20) {
 			count =0;
 			term_print("\r\n%3d: ", address);
 		}
-		term_print("%04u ", sample_buf[buf_num][i]);
-
-		squared_acc += sample_buf[buf_num][i] * adc_raw_buf[buf_num][i];
+		term_print("%04u ", sample_buf[bufnum][i]);
 		count++; address++;
 	}
-	// RMS is wrong - needs to measure only one half of sine wave
-	rms_value = (uint16_t) sqrt((squared_acc / SAMPLE_BUF_SIZE));
-	term_print("\r\nMin: %dmV Max: %dmV ", calc_adc_raw_to_mv_int(sample_buf_meta[buf_num].min), calc_adc_raw_to_mv_int(sample_buf_meta[buf_num].max) );
-	term_print("RMS: %dmV [%u]\r\n", calc_adc_raw_to_mv_int(rms_value), rms_value);
-	term_print("\r\nMin: %d Max: %d ", sample_buf_meta[buf_num].min, sample_buf_meta[buf_num].max );
-	term_print("Zero crossing: pos=%d neg=%d\r\n", sample_buf_meta[buf_num].zero_cross_pos, sample_buf_meta[buf_num].zero_cross_neg);
+	if (sample_buf_meta[bufnum].rms_value < 0) { calc_rms(bufnum); }
+	term_print("\r\nRMS: %dmV, Zero: %dmV\r\n", calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].rms_value), calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min) );
+	term_print("\r\nMin: %dmV Max: %dmV ", calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].min), calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max) );
+	term_print("\r\nMin: %d Max: %d ", sample_buf_meta[bufnum].min, sample_buf_meta[bufnum].max );
+	term_print("Zero crossing: pos=%d neg=%d\r\n", sample_buf_meta[bufnum].zero_cross_pos, sample_buf_meta[bufnum].zero_cross_neg);
 
 }
 
@@ -223,12 +222,52 @@ void calc_show_buffer(uint8_t buf_num) {
  * Output adc_raw_buf contents in CSV format to terminal
  */
 void calc_csv_buffer(uint8_t buf_num) {
-	if (buf_num > 3) { return; }
+	if (buf_num >= ADC_NUM_BUFFERS) { return; }
 	term_print("Buffer %d\r\n", buf_num);
 	for (int i=0; i<ADC_NUM_DATA; i++) {
 		term_print("%d,%u\r\n", i, adc_raw_buf[buf_num][i]);
 	}
 	term_print("\r\n\r\n");
+}
+
+/*
+ * Calculate the RMS value of a sample buffer
+ * returns: the RMS value or -1 on failure
+ * The RMS value is calculated from readings between the positive and negative zero crossing
+ * that is, the positive half of the sine wave.
+ * The RMS value is calculate by adding the square of each reading to an accumulator and then
+ * diving the accumulator by the number of readings.
+ */
+int calc_rms(uint8_t bufnum) {
+	int i;
+	uint64_t squared_acc = 0;		// accumulating the squared values
+	uint16_t num_readings = 0;		// number of squared readings
+	uint16_t reading = 0;
+	uint16_t zero_value = sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min;
+
+	if (bufnum >= ADC_NUM_BUFFERS) { return -1; }		// check valid buffer number
+	if (sample_buf_meta[bufnum].zero_cross_pos < 0) { return -1; }	// do we have zero crossing?
+	if (sample_buf_meta[bufnum].zero_cross_pos < sample_buf_meta[bufnum].zero_cross_neg) {
+		for (i=sample_buf_meta[bufnum].zero_cross_pos; i<sample_buf_meta[bufnum].zero_cross_neg; i++ ) {
+			reading = sample_buf[bufnum][i] - zero_value;
+			squared_acc += reading * reading;
+			num_readings++;
+		}
+	} else {
+
+		for (i=sample_buf_meta[bufnum].zero_cross_pos; i<SAMPLE_BUF_SIZE; i++ ) {
+			reading = sample_buf[bufnum][i] - zero_value;
+			squared_acc += reading * reading;
+			num_readings++;
+		}
+		for (i=sample_buf_meta[bufnum].zero_cross_pos; i<sample_buf_meta[bufnum].zero_cross_neg; i++ ) {
+			reading = sample_buf[bufnum][i] - zero_value;
+			squared_acc += reading * reading;
+			num_readings++;
+		}
+	}
+	sample_buf_meta[bufnum].rms_value = sqrt((squared_acc / num_readings));
+	return sample_buf_meta[bufnum].rms_value;
 }
 
 /*

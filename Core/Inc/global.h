@@ -13,6 +13,7 @@ struct sampleBufMeta {
 	uint16_t max;			// maximum value in buffer
 	int zero_cross_pos;		// positive slope crossing, -1 = uninitialized, -9 = zero detection error
 	int zero_cross_neg;		// negative slope crossing
+	int rms_value;			// calculated RMS value
 };
 
 // line below controls TFT display usage
