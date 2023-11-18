@@ -74,7 +74,7 @@ int display_align_curve(uint8_t bufnum) {
 	}
 	*/
 
-	continue_at = 20;
+	continue_at = SAMPLE_BUF_OVERLAP;
 
 	if (continue_at < 0) return -1;	// abort if continuation hasn't bee found
 	for (i=continue_at; i<sample_buf_meta[bufnum].zero_cross_pos; i++) {

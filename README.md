@@ -49,3 +49,12 @@ In this example ADC1 and ADC2 are used to sample simultaneously resulting in a t
 **Note:** the ADC is capable of much faster sampling but to transfer the data to memory takes time and can result in an overrun error if the next conversion is started before the data is read. 
 
 
+#WiFi Interface
+ESP-01 connected to USART3
+
+| Pin | Name | ESP |
+| --- | --- | --- |
+| PC10 | USART3_TX | ESP01 RX |
+| PC5 | USART3_RX | ESP01 TX |
+| PA15 | ESP01_EN | Enable |
+| PB7 | ESP01_RST | Reset |

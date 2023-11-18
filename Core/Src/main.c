@@ -62,7 +62,10 @@ UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
-uint8_t startup_msg[] = "\r\nPM1 - Initialized OK\r\n";
+const char product_msg[] = "PM1";
+const char copyright_msg[] = "(C)2023 Control Technologies P/L";
+char msg_buf[64];
+uint8_t sample_buf_lock = 0xFF;	// lock sample buffer to prevent override
 uint16_t rx_count = 0;
 uint8_t rx_byte;
 uint8_t rx_buff[20];
@@ -218,8 +221,9 @@ int main(void)
   Displ_BackLight('1');
 #endif
 
-  // Startup success message
-  if (HAL_UART_Transmit(&huart2, startup_msg, sizeof(startup_msg), 1000) != HAL_OK) {
+  // Startup message
+  sprintf(msg_buf, "\r\n%s V%d.%02d\r\n%s\r\n",  product_msg ,VERSION_MAJOR, VERSION_MINOR, copyright_msg);
+  if (HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
     Error_Handler();
   }
   // Show active TIM2 configuration (for 25us ADC trigger)
@@ -249,11 +253,11 @@ int main(void)
 	  }
 
 	  if (show_buffer) {
-		  calc_show_buffer(show_buffer-1);
+		  term_show_buffer(show_buffer-1);
 		  show_buffer = 0;
 	  }
 	  if (csv_buffer) {
-  	  	  calc_csv_buffer(csv_buffer-1);
+  	  	  term_csv_buffer(csv_buffer-1);
 	  	  csv_buffer = 0;
 	  }
 

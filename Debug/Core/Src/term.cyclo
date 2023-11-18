@@ -1,2 +1,5 @@
-../Core/Src/term.c:18:5:term_init	1
-../Core/Src/term.c:22:19:term_print	1
+../Core/Src/term.c:24:5:term_init	1
+../Core/Src/term.c:28:19:term_print	1
+../Core/Src/term.c:39:6:term_show_buffer	4
+../Core/Src/term.c:58:6:term_show_measurements	4
+../Core/Src/term.c:78:6:term_csv_buffer	3

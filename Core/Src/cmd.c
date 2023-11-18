@@ -14,9 +14,7 @@
 #include "cmd.h"
 #include "term.h"
 
-
 #define CMD_MIN_LEN 1		// minimum command length
-
 
 extern UART_HandleTypeDef huart2;
 extern uint8_t adc_restart;
@@ -69,6 +67,7 @@ int cmd_help(void) {
 	term_print("D[1..4]: Display ADC channel 1 - 4 on TFT display\r\n");
 #endif
 	term_print("L[0,1]: LED L2 OFF / ON\r\n");
+	term_print("M[1..4]: Show measurements for ADC channel 1 - 4 buffer in terminal \r\n");
 	term_print("P[2000..2500]: adjust timer value for sample time\r\n");
 	term_print("R: Restart ADC conversion\r\n");
 	term_print("S[1..4]: Show ADC channel 1 - 4 buffer content in terminal\r\n");
@@ -94,6 +93,11 @@ int cmd_process(uint8_t* cmd_str) {
 	case 'L':
 	case 'l':
 		led_cmd = cmd_str[1] - 0x30 + 1;
+		retval = 0;
+		break;
+	case 'M':
+	case 'm':
+		term_show_measurements(cmd_str[1] - 0x31);
 		retval = 0;
 		break;
 	case 'P':

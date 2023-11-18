@@ -8,11 +8,17 @@
 #ifndef INC_GLOBAL_H_
 #define INC_GLOBAL_H_
 
+#define VERSION_MAJOR 0
+#define VERSION_MINOR 1
+
+
+
 struct sampleBufMeta {
 	uint16_t min;			// minimum value in buffer
 	uint16_t max;			// maximum value in buffer
 	int zero_cross_pos;		// positive slope crossing, -1 = uninitialized, -9 = zero detection error
 	int zero_cross_neg;		// negative slope crossing
+	uint8_t measurements_valid;	// 0 - measurements are not valid (have not been calculated)
 	int rms_value;			// calculated RMS value
 };
 
@@ -35,6 +41,7 @@ struct sampleBufMeta {
 
 #define ADC_NUM_DATA 840U		   			// number of data points to record for each channel
 #define SAMPLE_BUF_SIZE ADC_NUM_DATA / 2	// number of data points after downsampling
+#define SAMPLE_BUF_OVERLAP 20				// half of raw buffer overlap
 
 // 2 DMA buffers (one per ADC) contain both channels, need space for 2 lots
 #define ADC_DMA_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS * 2	// size of each DMA buffer which contains 2 sets of data
