@@ -1,3 +1,4 @@
 ../Core/Src/display.c:31:6:draw_curve	40	static
-../Core/Src/display.c:42:5:display_align_curve	32	static
-../Core/Src/display.c:92:6:display_show_curve	104	static
+../Core/Src/display.c:42:5:display_align_curves	24	static
+../Core/Src/display.c:93:6:display_show_curves	48	static
+../Core/Src/display.c:174:6:display_show_curve	104	static

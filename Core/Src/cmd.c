@@ -13,14 +13,13 @@
 #include "global.h"
 #include "cmd.h"
 #include "term.h"
+#include "display.h"
 
 #define CMD_MIN_LEN 1		// minimum command length
 
 extern UART_HandleTypeDef huart2;
 extern uint8_t adc_restart;
-extern uint8_t show_buffer;
 extern uint8_t cmd_display_buffer;
-extern uint8_t csv_buffer;
 extern uint8_t led_cmd;
 extern uint8_t tft_display;
 extern uint16_t new_time_period;
@@ -67,6 +66,7 @@ int cmd_help(void) {
 	term_print("D[1..4]: Display ADC channel 1 - 4 on TFT display\r\n");
 #endif
 	term_print("L[0,1]: LED L2 OFF / ON\r\n");
+	term_print("M show measurements using all channels");
 	term_print("M[1..4]: Show measurements for ADC channel 1 - 4 buffer in terminal \r\n");
 	term_print("P[2000..2500]: adjust timer value for sample time\r\n");
 	term_print("R: Restart ADC conversion\r\n");
@@ -80,13 +80,17 @@ int cmd_process(uint8_t* cmd_str) {
 	switch(cmd_str[0]) {
 	case 'C':
 	case 'c':
-		csv_buffer = cmd_str[1] - 0x30;
+		term_csv_buffer(cmd_str[1] - 0x31);
 		retval = 0;
 		break;
 #ifdef USE_DISPLAY
 	case 'D':
 	case 'd':
-		cmd_display_buffer = cmd_str[1] - 0x30;
+		if (strlen((char*)cmd_str) > 1) {
+			display_show_curve(cmd_str[1] - 0x31);
+		} else {
+			display_show_curves();
+		}
 		retval = 0;
 		break;
 #endif
@@ -97,7 +101,11 @@ int cmd_process(uint8_t* cmd_str) {
 		break;
 	case 'M':
 	case 'm':
-		term_show_measurements(cmd_str[1] - 0x31);
+		if (strlen((char*)cmd_str) > 1) {
+		    term_show_channel(cmd_str[1] - 0x31);
+		} else {
+			term_show_measurements();
+		}
 		retval = 0;
 		break;
 	case 'P':
@@ -111,7 +119,7 @@ int cmd_process(uint8_t* cmd_str) {
 		break;
 	case 'S':
 	case 's':
-		show_buffer = cmd_str[1] - 0x30;
+		term_show_buffer(cmd_str[1] - 0x31);
 		retval = 0;
 		break;
 	case 'T':

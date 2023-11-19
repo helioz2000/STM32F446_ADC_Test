@@ -1,3 +1,4 @@
 ../Core/Src/display.c:31:6:draw_curve	2
-../Core/Src/display.c:42:5:display_align_curve	6
-../Core/Src/display.c:92:6:display_show_curve	7
+../Core/Src/display.c:42:5:display_align_curves	5
+../Core/Src/display.c:93:6:display_show_curves	6
+../Core/Src/display.c:174:6:display_show_curve	7

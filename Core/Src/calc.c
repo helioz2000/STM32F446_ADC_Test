@@ -16,8 +16,11 @@
 extern uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];
 //extern uint16_t adc2_dma_buf[];
 
+extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_kw1, metervalue_pf1;
+
 extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
+
 struct sampleBufMeta sample_buf_meta[ADC_NUM_BUFFERS];					// store meta data for associated buffer
 
 //inline int16_t MAX(int16_t a, int16_t b) { return((a) > (b) ? a : b); }
@@ -191,14 +194,96 @@ void calc_downsample(uint8_t bufnum) {
 }
 
 /*
- * Calculate the measurements of a sample buffer
+ * Calculate all measurements
+ *
+ */
+int calc_measurements(void) {
+	int i;
+	int64_t v_sq_acc = 0;		// accumulating the squared voltage values
+	int64_t i1_sq_acc = 0;		// accumulating the squared I1 values
+	float i1_va_acc = 0;
+	float i1_w_acc = 0;			// accumulating I1 values where I > 0 (for W calculation)
+	uint16_t num_readings = 0;		// number of squared readings for v, i and va
+	uint16_t num_w_readings = 0;	// number of squared readings for kw
+	int16_t v_reading;			// always positive, we are using the positive half wave
+	int16_t i_reading;			// could be negative if current is leading or lagging
+	float va_instant;			// instant VA value
+	uint16_t v_zero = (sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min) / 2;
+	uint16_t i1_zero = (sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min) / 2;
+
+
+	// Calculate values using the positive half of the sine wave
+
+	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < 0) { return -1; }	// do we have zero crossing?
+	// add up squared measurements
+	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < sample_buf_meta[ADC_CH_V].zero_cross_neg) {
+		for (i=sample_buf_meta[ADC_CH_V].zero_cross_pos; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
+			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
+			v_sq_acc += v_reading * v_reading;
+			i_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
+			i1_sq_acc += i_reading * i_reading;
+			num_readings++;
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i_reading);
+			if (i_reading >= 0) {
+				i1_va_acc += va_instant;
+			} else {
+				i1_w_acc += abs(va_instant);
+				num_w_readings++;
+				//term_print("va_instant %.1fVA [%d] (%.1fV %.1fA[%d])\r\n", va_instant, i, calc_adc_raw_to_V(v_reading), calc_adc_raw_to_A(i_reading), i_reading);
+			}
+		}
+	} else {
+		for (i=sample_buf_meta[ADC_CH_V].zero_cross_pos; i<SAMPLE_BUF_SIZE; i++ ) {
+			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
+			v_sq_acc += v_reading * v_reading;
+			i_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
+			i1_sq_acc += i_reading * i_reading;
+			num_readings++;
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i_reading);
+			if (i_reading >= 0) {
+				i1_va_acc += va_instant;
+			} else {
+				i1_w_acc += abs(va_instant);
+				num_w_readings++;
+			}
+		}
+		for (i=SAMPLE_BUF_OVERLAP; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
+			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
+			v_sq_acc += v_reading * v_reading;
+			i_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
+			i1_sq_acc += i_reading * i_reading;
+			num_readings++;
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i_reading);
+
+			if (i_reading >= 0) {
+				i1_va_acc += va_instant;
+			} else {
+				i1_w_acc += abs(va_instant);
+				num_w_readings++;
+			}
+		}
+	}
+
+	metervalue_v = calc_adc_raw_to_V (sqrt((v_sq_acc / num_readings)));		// RMS voltage
+	metervalue_i1 = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
+	metervalue_va1 = i1_va_acc / num_readings;
+
+	term_print("%.1fW (%d/%d readings)\r\n", i1_w_acc / num_w_readings, num_w_readings, num_readings ) ;
+
+	metervalue_kw1 = i1_w_acc / num_readings;
+	metervalue_pf1 = metervalue_kw1 / metervalue_va1;
+	return 0;
+}
+
+/*
+ * Calculate the measurements of single sample buffer
  * returns: 0 on success or -1 on failure
  * The RMS value is calculated from readings between the positive and negative zero crossing
  * that is, the positive half of the sine wave.
  * The RMS value is calculate by adding the square of each reading to an accumulator and then
  * diving the accumulator by the number of readings.
  */
-int calc_measurements(uint8_t bufnum) {
+int calc_channel(uint8_t bufnum) {
 	int i;
 	uint64_t squared_acc = 0;		// accumulating the squared values
 	uint16_t num_readings = 0;		// number of squared readings
@@ -237,13 +322,21 @@ int calc_measurements(uint8_t bufnum) {
  * Convert ADC raw reading to mv
  * returns mv as int
  */
-int calc_adc_raw_to_mv_int(uint16_t adc_raw) {
+int calc_adc_raw_to_mv_int(int16_t adc_raw) {
 	return round(calc_adc_raw_to_mv_float(adc_raw));
 }
 
 /*
  * Convert raw reading to mV
  */
-float calc_adc_raw_to_mv_float(uint16_t adc_raw) {
+float calc_adc_raw_to_mv_float(int16_t adc_raw) {
 	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_MV;
+}
+
+float calc_adc_raw_to_V(int16_t adc_raw) {
+	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_CH_V;
+}
+
+float calc_adc_raw_to_A(int16_t adc_raw) {
+	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_CH_I;
 }

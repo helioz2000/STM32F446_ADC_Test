@@ -72,9 +72,7 @@ uint8_t rx_buff[20];
 uint8_t rx_cmd_ready = 0;
 
 uint8_t adc_restart = 0;
-uint8_t show_buffer = 0;
-uint8_t cmd_display_buffer = 0;
-uint8_t csv_buffer = 0;
+//uint8_t cmd_display_buffer = 0;
 uint8_t led_cmd = 0;
 uint8_t tft_display = 0;
 uint16_t new_time_period = 0;
@@ -87,6 +85,8 @@ __IO int32_t adc2_dma_h_count = 0;
 __IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// one DMA buffer for each ADC (contains both channels)
 uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];		// buffer for 4 channels of downsampled data
+
+float metervalue_v, metervalue_i1, metervalue_va1, metervalue_kw1, metervalue_pf1;
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
@@ -252,15 +252,6 @@ int main(void)
 		  start_adcs();
 	  }
 
-	  if (show_buffer) {
-		  term_show_buffer(show_buffer-1);
-		  show_buffer = 0;
-	  }
-	  if (csv_buffer) {
-  	  	  term_csv_buffer(csv_buffer-1);
-	  	  csv_buffer = 0;
-	  }
-
 	  if (new_time_period) {
 		  // change timer period to new value
 		  adjust_TIM2_period(new_time_period, 1);
@@ -268,10 +259,10 @@ int main(void)
 	  }
 
 #ifdef USE_DISPLAY
-	  if (cmd_display_buffer) {
+	  /*if (cmd_display_buffer) {
 		  display_show_curve(cmd_display_buffer-1);
 	  	  cmd_display_buffer = 0;
-	  }
+	  }*/
 
 	  if (tft_display) {
 		  if (tft_display == 9) {

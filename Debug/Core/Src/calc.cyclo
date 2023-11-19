@@ -1,6 +1,9 @@
-../Core/Src/calc.c:41:5:calc_process_dma_buffer	5
-../Core/Src/calc.c:101:6:calc_zero_detector	20
-../Core/Src/calc.c:169:6:calc_downsample	4
-../Core/Src/calc.c:201:5:calc_measurements	7
-../Core/Src/calc.c:240:5:calc_adc_raw_to_mv_int	1
-../Core/Src/calc.c:247:7:calc_adc_raw_to_mv_float	1
+../Core/Src/calc.c:44:5:calc_process_dma_buffer	5
+../Core/Src/calc.c:104:6:calc_zero_detector	20
+../Core/Src/calc.c:172:6:calc_downsample	4
+../Core/Src/calc.c:200:5:calc_measurements	9
+../Core/Src/calc.c:286:5:calc_channel	7
+../Core/Src/calc.c:325:5:calc_adc_raw_to_mv_int	1
+../Core/Src/calc.c:332:7:calc_adc_raw_to_mv_float	1
+../Core/Src/calc.c:336:7:calc_adc_raw_to_V	1
+../Core/Src/calc.c:340:7:calc_adc_raw_to_A	1

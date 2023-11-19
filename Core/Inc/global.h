@@ -30,6 +30,8 @@ struct sampleBufMeta {
 
 #define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading
 #define ADC_FS_MV 3300		// millivolt at full scale
+#define ADC_FS_CH_V	800		// P-P V at full scale (800V P-P = 400 * 0.707 = 282V RMS)
+#define ADC_FS_CH_I 200		// P-P A at full scale (200A P-P = 100 * 0.707 = 70A RMS)
 #define ADC_CENTER_RAW 1861	// centre of signal (1500mV = 1861, 1650mV = 2047)
 
 #define ADC_NUM 2		// number of ADCs in use
@@ -46,10 +48,19 @@ struct sampleBufMeta {
 // 2 DMA buffers (one per ADC) contain both channels, need space for 2 lots
 #define ADC_DMA_BUF_SIZE ADC_NUM_DATA * ADC_NUM_CHANNELS * 2	// size of each DMA buffer which contains 2 sets of data
 
+// identify buffers by signal source
 #define ADC_CH_V 0
 #define ADC_CH_I1 1
+#define ADC_CH_I2 2
+#define ADC_CH_I3 3
+
+// ADC scaling
+#define ADC_V_MV_PER_BIT
+#define ADC_I1_MA_PER_BIT
+
+
 /*
- * DMA buffer definition
+ * DMA buffer description
  * The DMA buffer contains one int16 entry per ADC reading
  * The sequence order is: CH1, CH2, CH1, CH2, CH1, CH2, ....
  * 800 recordings for 2 channel require 1600 entries

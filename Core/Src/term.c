@@ -17,6 +17,7 @@ extern UART_HandleTypeDef huart2;
 extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
 extern struct sampleBufMeta sample_buf_meta[];
+extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_kw1, metervalue_pf1;
 
 #define TERM_BUF_SIZE 128
 uint8_t term_buf[TERM_BUF_SIZE];
@@ -52,14 +53,23 @@ void term_show_buffer(uint8_t bufnum) {
 		count++; address++;
 	}
 	term_print("\r\n");
-	term_show_measurements(bufnum);
+	term_show_channel(bufnum);
 }
 
-void term_show_measurements(uint8_t bufnum) {
+void term_show_measurements() {
+	if (sample_buf_meta[ADC_CH_V].measurements_valid != 1) {
+		if (calc_measurements() != 0) {
+			term_print(" invalid readings\r\n");
+			return;
+		}
+	}
+	term_print("%.1fV %.1fA %.1fVA %.1fW PF %.1f\r\n", metervalue_v, metervalue_i1, metervalue_va1, metervalue_kw1, metervalue_pf1);
+}
 
+void term_show_channel(uint8_t bufnum) {
 	if (bufnum >= ADC_NUM_BUFFERS) { return; }
 	if (sample_buf_meta[bufnum].measurements_valid != 1) {
-		if (calc_measurements(bufnum) != 0) {
+		if (calc_channel(bufnum) != 0) {
 			term_print("Buffer %d - invalid readings\r\n", bufnum);
 			return; } ;
 	}

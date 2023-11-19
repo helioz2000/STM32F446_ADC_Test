@@ -12,6 +12,7 @@ int term_init(void);
 HAL_StatusTypeDef term_print(const char* format, ...);
 void term_show_buffer(uint8_t bufnum);
 void term_csv_buffer(uint8_t buf_num);
-void term_show_measurements(uint8_t bufnum);
+void term_show_measurements(void);
+void term_show_channel(uint8_t bufnum);
 
 #endif /* INC_TERM_H_ */
