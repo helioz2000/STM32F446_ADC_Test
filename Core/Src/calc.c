@@ -210,6 +210,7 @@ int calc_measurements(void) {
 	float va_instant;			// instant VA value
 	uint16_t v_zero = (sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min) / 2;
 	uint16_t i1_zero = (sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min) / 2;
+	float w, va;
 
 
 	// Calculate values using the positive half of the sine wave
@@ -266,12 +267,19 @@ int calc_measurements(void) {
 
 	metervalue_v = calc_adc_raw_to_V (sqrt((v_sq_acc / num_readings)));		// RMS voltage
 	metervalue_i1 = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
-	metervalue_va1 = i1_va_acc / num_readings;
+	if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
+	if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
+	w = w-va;
+	if (w < 0) w = 0;
+	va = va + w;
+	if (w > metervalue_v * metervalue_i1) { w = metervalue_v * metervalue_i1; }
+	metervalue_va1 = va;
+	metervalue_kw1 = w;
 
-	term_print("%.1fW (%d/%d readings)\r\n", i1_w_acc / num_w_readings, num_w_readings, num_readings ) ;
+	term_print("%.1fW %.1fVA (%d/%d readings)\r\n", w, va, num_w_readings, num_readings ) ;
 
-	metervalue_kw1 = i1_w_acc / num_readings;
-	metervalue_pf1 = metervalue_kw1 / metervalue_va1;
+	//metervalue_kw1 = i1_w_acc / num_readings;
+	//metervalue_pf1 = metervalue_kw1 / metervalue_va1;
 	return 0;
 }
 

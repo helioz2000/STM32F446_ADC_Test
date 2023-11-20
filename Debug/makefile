@@ -60,8 +60,8 @@ all: main-build
 main-build: STM32F446_ADC_Test.elf secondary-outputs
 
 # Tool invocations
-STM32F446_ADC_Test.elf STM32F446_ADC_Test.map: $(OBJS) $(USER_OBJS) /Users/eb/code/STM32CubeIDE/Playground/STM32F446_ADC_Test/STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "STM32F446_ADC_Test.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/eb/code/STM32CubeIDE/Playground/STM32F446_ADC_Test/STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F446_ADC_Test.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+STM32F446_ADC_Test.elf STM32F446_ADC_Test.map: $(OBJS) $(USER_OBJS) /Users/eb/Code/STM32CubeIDE/Playground/STM32F446_ADC_Test/STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "STM32F446_ADC_Test.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/eb/Code/STM32CubeIDE/Playground/STM32F446_ADC_Test/STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F446_ADC_Test.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
