@@ -8,7 +8,7 @@
 ../Core/Src/z_displ_ILI9XXX.c:298:6:Displ_Orientation	5
 ../Core/Src/z_displ_ILI9XXX.c:330:6:HAL_SPI_ErrorCallback	2
 ../Core/Src/z_displ_ILI9XXX.c:341:6:HAL_SPI_TxCpltCallback	2
-../Core/Src/z_displ_ILI9XXX.c:361:6:Displ_FillArea	10
+../Core/Src/z_displ_ILI9XXX.c:361:6:Displ_FillArea	11
 ../Core/Src/z_displ_ILI9XXX.c:451:6:ILI9488_DrawImage	1
 ../Core/Src/z_displ_ILI9XXX.c:464:6:Displ_Pixel	3
 ../Core/Src/z_displ_ILI9XXX.c:474:6:Displ_drawCircle	3

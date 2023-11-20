@@ -10,6 +10,7 @@
 #include "stm32f4xx_hal.h"
 #include <stdio.h>
 #include <string.h>
+#include "main.h"
 #include "global.h"
 #include "cmd.h"
 #include "term.h"
@@ -20,7 +21,6 @@
 extern UART_HandleTypeDef huart2;
 extern uint8_t adc_restart;
 extern uint8_t cmd_display_buffer;
-extern uint8_t led_cmd;
 extern uint8_t tft_display;
 extern uint16_t new_time_period;
 
@@ -29,7 +29,6 @@ uint8_t cmd_len = 0;
 void cmd_error(uint8_t* cmd_str) {
 	term_print("Error in command <%s>\r\n", cmd_str);
 }
-
 
 int cmd_t(uint8_t* cmd_str) {
 	switch (cmd_str[1]) {
@@ -56,6 +55,15 @@ int cmd_p(uint8_t* cmd_str) {
 	if (result != 1) return -1;
 	new_time_period = value;
 	return 0;
+}
+
+int cmd_led(int cmd) {
+	if (cmd > 1) {
+		HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+	} else {
+		HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+	}
+	return(0);
 }
 
 
@@ -96,8 +104,7 @@ int cmd_process(uint8_t* cmd_str) {
 #endif
 	case 'L':
 	case 'l':
-		led_cmd = cmd_str[1] - 0x30 + 1;
-		retval = 0;
+		retval = cmd_led(cmd_str[1] - 0x30 + 1);
 		break;
 	case 'M':
 	case 'm':

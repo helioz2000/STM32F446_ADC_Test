@@ -25,8 +25,8 @@ struct sampleBufMeta {
 // line below controls TFT display usage
 #define USE_DISPLAY
 
-#define DISPLAY_X DISPL_HEIGHT	// 480
-#define DISPLAY_Y DISPL_WIDTH	// 320
+#define DISPLAY_X DISPL_HEIGHT	// 480 or 320
+#define DISPLAY_Y DISPL_WIDTH	// 320 or 240
 
 #define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading
 #define ADC_FS_MV 3300		// millivolt at full scale

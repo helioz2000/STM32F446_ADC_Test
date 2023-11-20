@@ -48,8 +48,8 @@
 /******************    STEP 2    *****************
  * which display are you using?
  *************************************************/
-//#define ILI9341
-#define ILI9488_V1
+#define ILI9341
+//#define ILI9488_V1
 //#define ILI9488_V2
 
 

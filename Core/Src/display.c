@@ -28,6 +28,34 @@ uint16_t curve_len = 0;
 char str[32];
 uint8_t lastbuf = 9;
 
+void display_start_screen() {
+	// Draw initial TFT Display
+	  Displ_CLS(BLACK);			// after initialization (above) and before turning on backlight (below), you can draw the initial display appearance.
+	  Displ_Line(0, 0, 20, 0, BLUE);
+	  Displ_Line(0, 0, 0, 20, BLUE);
+	  //Displ_Line(0, 140, 240, 140, RED);
+	  Displ_WString(10, 10, "10,10" , Font12, 1, BLUE, WHITE);
+	  Displ_Line(DISPLAY_X-1, 0, DISPLAY_X-1, 20, RED);
+	  Displ_Line(DISPLAY_X-1, 0, DISPLAY_X-1-20, 0, RED);
+	  snprintf(str,32,"%d,%d",DISPLAY_X-10, 10);
+	  Displ_WString(DISPLAY_X-1-10-strlen(str)*Font12.Width, 10, str, Font12, 1, RED, WHITE);
+
+	  //Displ_Line(0, 0, 0, 20, BLUE);
+	  Displ_Line(0, DISPLAY_Y-1, 0, DISPLAY_Y-1-20, GREEN);
+	  Displ_Line(0, DISPLAY_Y-1, 20, DISPLAY_Y-1, GREEN);
+	  snprintf(str,32,"%d,%d",10,DISPLAY_Y-10);
+	  Displ_WString(10, DISPLAY_Y-10-Font12.Height, str, Font12, 1, BLACK, WHITE);
+
+	  Displ_Line(DISPLAY_X-1, DISPLAY_Y-1, DISPLAY_X-1-20, DISPLAY_Y-1, YELLOW);
+	  Displ_Line(DISPLAY_X-1, DISPLAY_Y-1, DISPLAY_X-1, DISPLAY_Y-1-20, YELLOW);
+	  snprintf(str,32,"%d,%d",DISPLAY_X-10,DISPLAY_Y-10);
+	  Displ_WString(DISPLAY_X-1-10-strlen(str)*Font12.Width, DISPLAY_Y-10-Font12.Height, str, Font12, 1, BLACK, WHITE);
+
+	  //Displ_WString(380, 10, "380,10" , Font12, 1, RED, WHITE);
+	  //Displ_WString(10, 300, "10,300" , Font12, 1, RED, WHITE);
+	  Displ_BackLight('1');
+}
+
 void draw_curve(uint16_t colour) {
 	for (int x=1; x<curve_len; x++) {
 		Displ_Line(x-1, curve_y[x-1], x, curve_y[x], colour);

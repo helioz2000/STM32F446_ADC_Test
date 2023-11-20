@@ -16,7 +16,7 @@
 extern uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];
 //extern uint16_t adc2_dma_buf[];
 
-extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_kw1, metervalue_pf1;
+extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
 
 extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
@@ -201,16 +201,16 @@ int calc_measurements(void) {
 	int i;
 	int64_t v_sq_acc = 0;		// accumulating the squared voltage values
 	int64_t i1_sq_acc = 0;		// accumulating the squared I1 values
-	float i1_va_acc = 0;
-	float i1_w_acc = 0;			// accumulating I1 values where I > 0 (for W calculation)
+	double i1_va_acc = 0;
+	double i1_w_acc = 0;			// accumulating I1 values where I > 0 (for W calculation)
 	uint16_t num_readings = 0;		// number of squared readings for v, i and va
-	uint16_t num_w_readings = 0;	// number of squared readings for kw
+	//uint16_t num_w_readings = 0;	// number of squared readings for kw
 	int16_t v_reading;			// always positive, we are using the positive half wave
 	int16_t i_reading;			// could be negative if current is leading or lagging
-	float va_instant;			// instant VA value
+	double va_instant;			// instant VA value
 	uint16_t v_zero = (sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min) / 2;
 	uint16_t i1_zero = (sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min) / 2;
-	float w, va;
+	float w=0, va=0;
 
 
 	// Calculate values using the positive half of the sine wave
@@ -229,8 +229,7 @@ int calc_measurements(void) {
 				i1_va_acc += va_instant;
 			} else {
 				i1_w_acc += abs(va_instant);
-				num_w_readings++;
-				//term_print("va_instant %.1fVA [%d] (%.1fV %.1fA[%d])\r\n", va_instant, i, calc_adc_raw_to_V(v_reading), calc_adc_raw_to_A(i_reading), i_reading);
+				//num_w_readings++;
 			}
 		}
 	} else {
@@ -245,7 +244,7 @@ int calc_measurements(void) {
 				i1_va_acc += va_instant;
 			} else {
 				i1_w_acc += abs(va_instant);
-				num_w_readings++;
+				//num_w_readings++;
 			}
 		}
 		for (i=SAMPLE_BUF_OVERLAP; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
@@ -260,7 +259,7 @@ int calc_measurements(void) {
 				i1_va_acc += va_instant;
 			} else {
 				i1_w_acc += abs(va_instant);
-				num_w_readings++;
+				//num_w_readings++;
 			}
 		}
 	}
@@ -269,17 +268,17 @@ int calc_measurements(void) {
 	metervalue_i1 = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
 	if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
 	if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
-	w = w-va;
-	if (w < 0) w = 0;
-	va = va + w;
-	if (w > metervalue_v * metervalue_i1) { w = metervalue_v * metervalue_i1; }
-	metervalue_va1 = va;
-	metervalue_kw1 = w;
+	metervalue_va1 = metervalue_v * metervalue_i1;
+	if (w > 0) {
+		metervalue_w1 = va - w;
+	} else {
+		metervalue_w1 = metervalue_va1;
+	}
+	metervalue_pf1 = metervalue_w1 / metervalue_va1;
 
-	term_print("%.1fW %.1fVA (%d/%d readings)\r\n", w, va, num_w_readings, num_readings ) ;
-
-	//metervalue_kw1 = i1_w_acc / num_readings;
-	//metervalue_pf1 = metervalue_kw1 / metervalue_va1;
+	//term_print("%.1fVA - %.1fW = %.1f (%d/%d readings)\r\n", va, w, va-w, num_w_readings, num_readings ) ;
+	//term_print("Vrms x Irms = %.1fVA\r\n", metervalue_v * metervalue_i1) ;
+	//term_print("Meter: %.1fVA %.1fW PF=%.2f (%.1fDeg)f\r\n", metervalue_va1, metervalue_kw1, metervalue_pf1, acos(metervalue_pf1) * (180.0 / 3.14159265)) ;
 	return 0;
 }
 

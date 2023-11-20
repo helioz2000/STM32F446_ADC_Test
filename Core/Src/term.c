@@ -17,7 +17,7 @@ extern UART_HandleTypeDef huart2;
 extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
 extern struct sampleBufMeta sample_buf_meta[];
-extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_kw1, metervalue_pf1;
+extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
 
 #define TERM_BUF_SIZE 128
 uint8_t term_buf[TERM_BUF_SIZE];
@@ -63,7 +63,7 @@ void term_show_measurements() {
 			return;
 		}
 	}
-	term_print("%.1fV %.1fA %.1fVA %.1fW PF %.1f\r\n", metervalue_v, metervalue_i1, metervalue_va1, metervalue_kw1, metervalue_pf1);
+	term_print("%.1fV %.1fA %.1fVA %.1fW PF=%.2f\r\n", metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1);
 }
 
 void term_show_channel(uint8_t bufnum) {

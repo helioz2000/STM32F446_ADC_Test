@@ -72,8 +72,6 @@ uint8_t rx_buff[20];
 uint8_t rx_cmd_ready = 0;
 
 uint8_t adc_restart = 0;
-//uint8_t cmd_display_buffer = 0;
-uint8_t led_cmd = 0;
 uint8_t tft_display = 0;
 uint16_t new_time_period = 0;
 
@@ -86,7 +84,7 @@ __IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// one DMA buffer for eac
 uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];		// buffer for 4 channels of downsampled data
 
-float metervalue_v, metervalue_i1, metervalue_va1, metervalue_kw1, metervalue_pf1;
+float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
@@ -211,14 +209,7 @@ int main(void)
   start_adcs();
 
 #ifdef USE_DISPLAY
-  // Draw initial TFT Display
-  Displ_CLS(BLACK);			// after initialization (above) and before turning on backlight (below), you can draw the initial display appearance.
-  Displ_Line(0, 160, 479, 160, BLUE);
-  Displ_Line(0, 140, 240, 140, RED);
-  Displ_WString(10, 10, "10,10" , Font20, 1, RED, WHITE);
-  Displ_WString(380, 10, "380,10" , Font20, 1, RED, WHITE);
-  Displ_WString(10, 300, "10,300" , Font20, 1, RED, WHITE);
-  Displ_BackLight('1');
+  display_start_screen();
 #endif
 
   // Startup message
@@ -259,10 +250,6 @@ int main(void)
 	  }
 
 #ifdef USE_DISPLAY
-	  /*if (cmd_display_buffer) {
-		  display_show_curve(cmd_display_buffer-1);
-	  	  cmd_display_buffer = 0;
-	  }*/
 
 	  if (tft_display) {
 		  if (tft_display == 9) {
@@ -282,15 +269,6 @@ int main(void)
 		  tft_display = 0;
 	  }
 #endif
-
-	  if (led_cmd) {
-		  if (led_cmd > 1) {
-			  HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-		  } else {
-			  HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-		  }
-		  led_cmd = 0;
-	  }
 
 	  //HAL_Delay(800);
 
