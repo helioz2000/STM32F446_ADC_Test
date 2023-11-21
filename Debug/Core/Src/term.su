@@ -1,6 +1,6 @@
-../Core/Src/term.c:25:5:term_init	4	static
-../Core/Src/term.c:29:19:term_print	16	static
-../Core/Src/term.c:40:6:term_show_buffer	32	static
-../Core/Src/term.c:59:6:term_show_measurements	72	static
-../Core/Src/term.c:69:6:term_show_channel	32	static
-../Core/Src/term.c:88:6:term_csv_buffer	24	static
+../Core/Src/term.c:26:5:term_init	4	static
+../Core/Src/term.c:30:19:term_print	16	static
+../Core/Src/term.c:41:6:term_show_buffer	32	static
+../Core/Src/term.c:60:6:term_show_measurements	88	static
+../Core/Src/term.c:71:6:term_show_channel	32	static
+../Core/Src/term.c:90:6:term_csv_buffer	24	static

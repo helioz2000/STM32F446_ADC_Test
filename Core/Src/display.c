@@ -14,52 +14,95 @@
 #include "global.h"
 #include "math.h"
 #include "calc.h"
+#include "term.h"
 
 #define ADC_MAX 4095
 
 extern uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for 4 channels of downsampled data
 extern struct sampleBufMeta sample_buf_meta[];
+extern char product_msg[];
+extern char copyright_msg[];
+extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
+
 
 uint16_t channel_colour[4] = { YELLOW, CYAN, GREEN, ORANGE};
-uint16_t curve_y[DISPLAY_X];		// store the curve before drawing, enables overwrite on next curve
-uint16_t aligned_curve[ADC_NUM_BUFFERS][DISPLAY_X];	// raw samples reduced to one full cycle (around 400 samples)
+uint16_t curve_y[800];		// store the curve before drawing, enables overwrite on next curve
+uint16_t aligned_curve[ADC_NUM_BUFFERS][800];	// raw samples reduced to one full cycle (around 400 samples)
 uint16_t curve_len = 0;
 char str[32];
 uint8_t lastbuf = 9;
+const Displ_Orientat_e display_orientation = Displ_Orientat_180;
+uint16_t display_x, display_y;
 
-void display_start_screen() {
+
+void display_init() {
+	Displ_Init(display_orientation); // initialize the display and set the initial display orientation
+	if ((display_orientation == Displ_Orientat_90) || (display_orientation == Displ_Orientat_270)) {	// Horizontal orientation
+	  display_x = DISPL_HEIGHT;	// 480 or 320
+	  display_y = DISPL_WIDTH;	// 320 or 240
+	} else {		// vertical orientation
+		display_y = DISPL_HEIGHT;	// 480 or 320
+		display_x = DISPL_WIDTH;	// 320 or 240
+	}
+}
+
+void display_splash_screen() {
 	// Draw initial TFT Display
-	  Displ_CLS(BLACK);			// after initialization (above) and before turning on backlight (below), you can draw the initial display appearance.
-	  Displ_Line(0, 0, 20, 0, BLUE);
-	  Displ_Line(0, 0, 0, 20, BLUE);
-	  //Displ_Line(0, 140, 240, 140, RED);
-	  Displ_WString(10, 10, "10,10" , Font12, 1, BLUE, WHITE);
-	  Displ_Line(DISPLAY_X-1, 0, DISPLAY_X-1, 20, RED);
-	  Displ_Line(DISPLAY_X-1, 0, DISPLAY_X-1-20, 0, RED);
-	  snprintf(str,32,"%d,%d",DISPLAY_X-10, 10);
-	  Displ_WString(DISPLAY_X-1-10-strlen(str)*Font12.Width, 10, str, Font12, 1, RED, WHITE);
+	Displ_CLS(BLACK);
+	snprintf(str,32, "%s V%d.%02d",  product_msg ,VERSION_MAJOR, VERSION_MINOR);
+	Displ_WString((display_x-(strlen(str)*Font24.Width))/2, (display_y-Font24.Height)/2, str, Font24, 1, YELLOW, BLACK);
 
-	  //Displ_Line(0, 0, 0, 20, BLUE);
-	  Displ_Line(0, DISPLAY_Y-1, 0, DISPLAY_Y-1-20, GREEN);
-	  Displ_Line(0, DISPLAY_Y-1, 20, DISPLAY_Y-1, GREEN);
-	  snprintf(str,32,"%d,%d",10,DISPLAY_Y-10);
-	  Displ_WString(10, DISPLAY_Y-10-Font12.Height, str, Font12, 1, BLACK, WHITE);
+	Displ_WString((display_x-(strlen(copyright_msg)*Font12.Width))/2, (display_y-Font24.Height)/2+25, copyright_msg, Font12, 1, WHITE, BLACK);
 
-	  Displ_Line(DISPLAY_X-1, DISPLAY_Y-1, DISPLAY_X-1-20, DISPLAY_Y-1, YELLOW);
-	  Displ_Line(DISPLAY_X-1, DISPLAY_Y-1, DISPLAY_X-1, DISPLAY_Y-1-20, YELLOW);
-	  snprintf(str,32,"%d,%d",DISPLAY_X-10,DISPLAY_Y-10);
-	  Displ_WString(DISPLAY_X-1-10-strlen(str)*Font12.Width, DISPLAY_Y-10-Font12.Height, str, Font12, 1, BLACK, WHITE);
+	Displ_BackLight('1');
+}
 
-	  //Displ_WString(380, 10, "380,10" , Font12, 1, RED, WHITE);
-	  //Displ_WString(10, 300, "10,300" , Font12, 1, RED, WHITE);
-	  Displ_BackLight('1');
+void display_corners() {
+	Displ_CLS(BLACK);
+	Displ_Line(0, 0, 20, 0, BLUE);
+	Displ_Line(0, 0, 0, 20, BLUE);
+	Displ_WString(10, 10, "10,10" , Font12, 1, BLUE, WHITE);
+
+	Displ_Line(display_x-1, 0, display_x-1, 20, RED);
+	Displ_Line(display_x-1, 0, display_x-1-20, 0, RED);
+	snprintf(str,32,"%d,%d",display_x-10, 10);
+	Displ_WString(display_x-1-10-strlen(str)*Font12.Width, 10, str, Font12, 1, RED, WHITE);
+
+	Displ_Line(0, display_y-1, 0, display_y-1-20, GREEN);
+	Displ_Line(0, display_y-1, 20, display_y-1, GREEN);
+	snprintf(str,32,"%d,%d",10,display_y-10);
+	Displ_WString(10, display_y-10-Font12.Height, str, Font12, 1, BLACK, WHITE);
+
+	Displ_Line(display_x-1, display_y-1, display_x-1-20, display_y-1, YELLOW);
+	Displ_Line(display_x-1, display_y-1, display_x-1, display_y-1-20, YELLOW);
+	snprintf(str,32,"%d,%d",display_x-10,display_y-10);
+	Displ_WString(display_x-1-10-strlen(str)*Font12.Width, display_y-10-Font12.Height, str, Font12, 1, BLACK, WHITE);
 }
 
 void draw_curve(uint16_t colour) {
 	for (int x=1; x<curve_len; x++) {
 		Displ_Line(x-1, curve_y[x-1], x, curve_y[x], colour);
 	}
+}
+
+void display_update_meter() {
+	//Displ_CLS(BLACK);
+	if (sample_buf_meta[ADC_CH_V].measurements_valid != 1) {
+		if (calc_measurements() != 0) {
+			term_print(" invalid readings\r\n");
+			return;			}
+		}
+	snprintf(str,sizeof(str),"%.1fV %.1fA  ", metervalue_v, metervalue_i1 );
+	Displ_WString(10, 10, str , Font24, 1, GREEN, BLACK);
+	snprintf(str,sizeof(str),"%.1fVA   ", metervalue_va1 );
+	Displ_WString(10, 40, str , Font24, 1, YELLOW, BLACK);
+	snprintf(str,sizeof(str),"%.1fW   ", metervalue_w1 );
+	Displ_WString(10, 70, str , Font24, 1, YELLOW, BLACK);
+	snprintf(str,sizeof(str),"PF %.2f   ", metervalue_pf1 );
+	Displ_WString(10, 100, str , Font24, 1, WHITE, BLACK);
+	snprintf(str,sizeof(str),"%.1fDeg   ", acos(metervalue_pf1) * (180.0 / 3.14159265) );
+	Displ_WString(10, 130, str , Font24, 1, WHITE, BLACK);
 }
 
 /*
@@ -121,7 +164,7 @@ int display_align_curves() {
 void display_show_curves(void) {
 
 	int y_offset = 0;
-	int y_max = DISPLAY_Y -1;		// max Y pixel position
+	int y_max = display_y -1;		// max Y pixel position
 	int x_max = ADC_NUM_DATA / 2;	// we have twice as many readings as pixels on the display
 	/*int value = 0;
 	int y_grid_100 = 0;
@@ -133,7 +176,7 @@ void display_show_curves(void) {
 
 	Displ_CLS(BLACK);
 	// zero line
-	Displ_Line(0, DISPLAY_Y/2, x_max, DISPLAY_Y/2, WHITE);
+	Displ_Line(0, display_y/2, x_max, display_y/2, WHITE);
 
 	/*
 	y_grid_100 = y_max - value + y_offset;
@@ -163,7 +206,7 @@ void display_show_curves(void) {
 
 
 	for (int i=0; i<4; i++) {
-		fScale = (float)DISPLAY_Y / (float)sample_buf_meta[i].max;
+		fScale = (float)display_y / (float)sample_buf_meta[i].max;
 		if (fScale < 1) {
 			scale_factor = trunc(1/fScale)+1; // divisor
 			//value = sample_buf_meta[i].max / scale_factor;
@@ -203,7 +246,7 @@ void display_show_curve(uint8_t bufnum) {
 	if ( (bufnum >= ADC_NUM_BUFFERS) || (bufnum < 0) ) return;	// buffer range check
 
 	int y_offset = 0;
-	int y_max = DISPLAY_Y -1;		// max Y pixel position
+	int y_max = display_y -1;		// max Y pixel position
 	int x_max = ADC_NUM_DATA / 2;	// we have twice as many readings as pixels on the display
 	int value = 0;
 	//int buf_index = 1;
@@ -212,7 +255,7 @@ void display_show_curve(uint8_t bufnum) {
 	int y_grid_25 = 0;
 
 	int scale_factor = 1;
-	float fScale = (float)DISPLAY_Y / (float)sample_buf_meta[bufnum].max;
+	float fScale = (float)display_y / (float)sample_buf_meta[bufnum].max;
 	if (fScale < 1) {
 		scale_factor = trunc(1/fScale)+1; // divisor
 		value = sample_buf_meta[bufnum].max / scale_factor;
@@ -229,7 +272,7 @@ void display_show_curve(uint8_t bufnum) {
 	// Draw grid lines
 	Displ_Line(0, y_grid_100, x_max, y_grid_100, WHITE);	// 100%
 	Displ_Line(0, y_grid_50, x_max, y_grid_50, WHITE);	// 50%
-	Displ_Line(0, DISPLAY_Y-1, x_max, DISPLAY_Y-1, WHITE);	// Zero
+	Displ_Line(0, display_y-1, x_max, display_y-1, WHITE);	// Zero
 
 	// Display grid values
 	snprintf(str,32,"%d",calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max));
@@ -238,7 +281,7 @@ void display_show_curve(uint8_t bufnum) {
 	snprintf(str,32,"%d",calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max/2));
 	value = Font16.Width * strlen(str);
 	Displ_WString(x_max, y_grid_50-Font16.Height/2, str , Font16, 1, BLACK, WHITE);
-	Displ_WString(x_max, DISPLAY_Y-Font16.Height, "0" , Font16, 1, BLACK, WHITE);
+	Displ_WString(x_max, display_y-Font16.Height, "0" , Font16, 1, BLACK, WHITE);
 
 	Displ_WString(x_max, y_grid_25 - Font20.Height/2, "mV" , Font20, 1, WHITE, BLACK);
 

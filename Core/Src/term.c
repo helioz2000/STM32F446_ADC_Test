@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <math.h>
 #include "global.h"
 #include "main.h"
 #include "calc.h"
@@ -63,7 +64,8 @@ void term_show_measurements() {
 			return;
 		}
 	}
-	term_print("%.1fV %.1fA %.1fVA %.1fW PF=%.2f\r\n", metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1);
+	term_print("%.1fV %.1fA %.1fVA %.1fW PF=%.2f (%.1fDeg)\r\n", metervalue_v, metervalue_i1, metervalue_va1,
+			metervalue_w1, metervalue_pf1, acos(metervalue_pf1) * (180.0 / 3.14159265) );
 }
 
 void term_show_channel(uint8_t bufnum) {

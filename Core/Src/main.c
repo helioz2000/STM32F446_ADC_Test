@@ -86,6 +86,13 @@ uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];		// buffer for 4 channels
 
 float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
 
+uint32_t display_off_ticks;
+uint32_t display_splash_ticks;
+uint32_t display_update_ticks;
+uint32_t now_ticks, last_ticks;
+uint32_t next_process_time;
+#define PROCESS_INTERVAL 100;	// run slow process every n ms
+
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
 
@@ -192,8 +199,10 @@ int main(void)
 
 #ifdef USE_DISPLAY
   // TFT Display
-  Displ_Init(Displ_Orientat_90); // initialize the display and set the initial display orientation (90°) - THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
+  display_init(); // THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
 #endif
+
+  //display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
 
   // Start UART receive via interrupt
   if (HAL_UART_Receive_IT(&huart2, (uint8_t*)&rx_byte, 1) != HAL_OK) {
@@ -209,7 +218,8 @@ int main(void)
   start_adcs();
 
 #ifdef USE_DISPLAY
-  display_start_screen();
+  display_splash_screen();
+  display_splash_ticks = HAL_GetTick() + SPLASH_SCREEN_TIME;
 #endif
 
   // Startup message
@@ -224,38 +234,72 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  next_process_time = HAL_GetTick() + PROCESS_INTERVAL;
+  term_print("current: %lu next: %lu\r\n", HAL_GetTick(), next_process_time);
   while (1)
   {
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	now_ticks = HAL_GetTick();
+	// look for ticks overrun
+	if (now_ticks < last_ticks) {
+	  next_process_time = now_ticks + PROCESS_INTERVAL;
+	  if (display_off_ticks) { display_off_ticks = now_ticks + DISPLAY_TIMEOUT; }
+	  display_update_ticks = now_ticks + DISPLAY_UPDATE_TIME;
+	}
+	last_ticks = now_ticks;		// store for compare in next iteration
 
-	  // Handle UART communication
-	  if (rx_cmd_ready) {
+	// process slow tasks
+	if ( now_ticks >= next_process_time ) {
+		next_process_time = now_ticks + PROCESS_INTERVAL;
+
+		// clear splash screen
+		if (display_splash_ticks) {
+			if (now_ticks >= display_splash_ticks) {
+				display_splash_ticks = 0;
+				display_update_ticks = now_ticks;
+				Displ_CLS(BLACK);
+				display_off_ticks = now_ticks + DISPLAY_TIMEOUT;
+			}
+		} else {
+		// Meter display update
+			if (now_ticks >= display_update_ticks) {
+				display_update_ticks = now_ticks + DISPLAY_UPDATE_TIME;
+				display_update_meter();
+			}
+		}
+
+		// display timeout
+		if (display_off_ticks && (now_ticks >= display_off_ticks)) {
+			Displ_BackLight('0');
+	  		display_off_ticks = 0;
+	  	}
+
+		// Handle UART communication
+		if (rx_cmd_ready) {
 		  CMD_Handler((uint8_t*)rx_buff);
 		  rx_count = 0;
 		  rx_cmd_ready = 0;
-	  }
+		}
 
-	  if (adc_restart) {
+		if (adc_restart) {
 		  adc_restart = 0;
 		  start_adcs();
-	  }
+		}
 
-	  if (new_time_period) {
+		if (new_time_period) {
 		  // change timer period to new value
 		  adjust_TIM2_period(new_time_period, 1);
 		  new_time_period = 0;
-	  }
+		}
 
 #ifdef USE_DISPLAY
 
-	  if (tft_display) {
+		if (tft_display) {
 		  if (tft_display == 9) {
 			  term_print("Running TFT performance test ...\r\n");
 			  Displ_BackLight('1');
-			  //Displ_PerfTest();
 			  Displ_TestAll();
 			  Displ_BackLight('0');
 			  term_print("....completed\r\n");
@@ -264,18 +308,20 @@ int main(void)
 				  Displ_BackLight('0');
 			  } else {
 				  Displ_BackLight('1');
+				  display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
 			  }
 		  }
 		  tft_display = 0;
-	  }
+		}
+
 #endif
 
-	  //HAL_Delay(800);
+	  }
 
 	  // Check if we have missed processing DMA data sets
 	  // This occurs if the main loop execution takes longer than 20ms (e.g. terminal output of lots of data)
 	  if ( (adc1_dma_l_count > 1) || (adc1_dma_h_count > 1) || (adc2_dma_l_count > 1) || (adc2_dma_h_count > 1)) {
-		  term_print("Processing missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
+		  term_print("Processing has missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
 		  if (adc1_dma_l_count > 1) { adc1_dma_l_count = 1; }
 		  if (adc1_dma_h_count > 1) { adc1_dma_h_count = 1; }
 		  if (adc2_dma_l_count > 1) { adc2_dma_l_count = 1; }
@@ -307,26 +353,6 @@ int main(void)
 	  	  }
 	   	  adc2_dma_h_count--;
 	  }
-
-	  //printf("ADC1: %lu  ADC2: %lu\r\n",adc1_conv_count, adc2_conv_count);
-	  /*
-	  if (adc1_conv_done) {
-		  if (adc1_conv_done == 1) {
-			  printf("ADC1: %u %u\r\n",adc1_raw[0],adc1_raw[1]);
-		  } else {
-  			  printf("ADC1: %u %u\r\n",adc1_raw[2],adc1_raw[3]);
-		  }
-		  adc1_conv_done = 0;
-	  }
-	  if (adc2_conv_done) {
-		  if (adc2_conv_done == 1) {
-			  printf("ADC2: %u %u\r\n",adc2_raw[0],adc2_raw[1]);
-		  } else {
-			  printf("ADC2: %u %u\r\n",adc2_raw[2],adc2_raw[3]);
-		  }
-		  adc2_conv_done = 0;
-	  }
-	  */
   }
   /* USER CODE END 3 */
 }

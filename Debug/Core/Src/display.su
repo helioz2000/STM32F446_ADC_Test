@@ -1,5 +1,8 @@
-../Core/Src/display.c:31:6:display_start_screen	48	static
-../Core/Src/display.c:59:6:draw_curve	40	static
-../Core/Src/display.c:70:5:display_align_curves	24	static
-../Core/Src/display.c:121:6:display_show_curves	48	static
-../Core/Src/display.c:202:6:display_show_curve	104	static
+../Core/Src/display.c:39:6:display_init	8	static
+../Core/Src/display.c:50:6:display_splash_screen	48	static
+../Core/Src/display.c:61:6:display_corners	48	static
+../Core/Src/display.c:83:6:draw_curve	40	static
+../Core/Src/display.c:89:6:display_update_meter	40	static
+../Core/Src/display.c:113:5:display_align_curves	24	static
+../Core/Src/display.c:164:6:display_show_curves	48	static
+../Core/Src/display.c:245:6:display_show_curve	104	static
