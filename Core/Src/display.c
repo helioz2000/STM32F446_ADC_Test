@@ -52,8 +52,9 @@ void display_splash_screen() {
 	Displ_CLS(BLACK);
 	snprintf(str,32, "%s V%d.%02d",  product_msg ,VERSION_MAJOR, VERSION_MINOR);
 	Displ_WString((display_x-(strlen(str)*Font24.Width))/2, (display_y-Font24.Height)/2, str, Font24, 1, YELLOW, BLACK);
-
 	Displ_WString((display_x-(strlen(copyright_msg)*Font12.Width))/2, (display_y-Font24.Height)/2+25, copyright_msg, Font12, 1, WHITE, BLACK);
+
+	Displ_WString(10, 250, "0123456789", Font30, 1, WHITE, BLACK);
 
 	Displ_BackLight('1');
 }

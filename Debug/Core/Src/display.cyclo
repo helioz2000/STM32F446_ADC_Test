@@ -1,8 +1,8 @@
 ../Core/Src/display.c:39:6:display_init	3
 ../Core/Src/display.c:50:6:display_splash_screen	1
-../Core/Src/display.c:61:6:display_corners	1
-../Core/Src/display.c:83:6:draw_curve	2
-../Core/Src/display.c:89:6:display_update_meter	3
-../Core/Src/display.c:113:5:display_align_curves	5
-../Core/Src/display.c:164:6:display_show_curves	6
-../Core/Src/display.c:245:6:display_show_curve	7
+../Core/Src/display.c:62:6:display_corners	1
+../Core/Src/display.c:84:6:draw_curve	2
+../Core/Src/display.c:90:6:display_update_meter	3
+../Core/Src/display.c:114:5:display_align_curves	5
+../Core/Src/display.c:165:6:display_show_curves	6
+../Core/Src/display.c:246:6:display_show_curve	7

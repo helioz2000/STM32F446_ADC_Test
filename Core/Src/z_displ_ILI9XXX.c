@@ -831,6 +831,14 @@ void Displ_WChar(uint16_t x, uint16_t y, char ch, sFONT font, uint8_t size, uint
     const uint8_t *pos;
 	uint8_t wsize=font.Width; //printing char width
 
+	// DMA buffer must be cleared before we write over it
+	while (!Displ_SpiAvailable) {};  // waiting for a free SPI port. Flag is set to 1 by transmission-complete interrupt callback
+	/* Note: this is not the correct solution. We have 2 DMA buffers, the original code relies on one buffer been emptied
+	 * via DMA while the second buffer is being written. However, given a large enough data qty in the buffers (e.g. font 30)
+	 * the first buffer is still being emptied, the second buffer filled, and the next operation over writes the first buffer
+	 * before DMA has finished with it, hence corrupting its contents before it is writen to the display.
+	 */
+
 	if (size==2)
 		wsize<<= 1;
 	bufSize=0;
@@ -854,6 +862,7 @@ void Displ_WChar(uint16_t x, uint16_t y, char ch, sFONT font, uint8_t size, uint
 
 	color1 = ((color & 0xFF)<<8 | (color >> 8));      		//swapping byte endian: STM32 is little endian, ST7735 is big endian
 	bgcolor1 = ((bgcolor & 0xFF)<<8 | (bgcolor >> 8));		//swapping byte endian: STM32 is little endian, ST7735 is big endian
+
 
 	for(i = 0; i < (bytes); i+=font.Size){
 		b=0;

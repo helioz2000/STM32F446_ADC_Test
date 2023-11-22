@@ -5,6 +5,7 @@
 "./Core/Src/font16.o"
 "./Core/Src/font20.o"
 "./Core/Src/font24.o"
+"./Core/Src/font30.o"
 "./Core/Src/font8.o"
 "./Core/Src/main.o"
 "./Core/Src/stm32f4xx_hal_msp.o"

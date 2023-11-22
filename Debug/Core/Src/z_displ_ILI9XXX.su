@@ -21,10 +21,10 @@
 ../Core/Src/z_displ_ILI9XXX.c:721:6:Displ_drawTriangle	32	static
 ../Core/Src/z_displ_ILI9XXX.c:734:6:Displ_fillTriangle	80	static
 ../Core/Src/z_displ_ILI9XXX.c:828:6:Displ_WChar	64	static
-../Core/Src/z_displ_ILI9XXX.c:951:6:Displ_drawRoundRect	40	static
-../Core/Src/z_displ_ILI9XXX.c:969:6:Displ_fillRoundRect	40	static
-../Core/Src/z_displ_ILI9XXX.c:993:6:Displ_WString	64	static
-../Core/Src/z_displ_ILI9XXX.c:1034:6:Displ_CString	56	static
-../Core/Src/z_displ_ILI9XXX.c:1089:11:Displ_BackLight	16	static,ignoring_inline_asm
-../Core/Src/z_displ_ILI9XXX.c:1158:5:touchgfxDisplayDriverTransmitActive	4	static
-../Core/Src/z_displ_ILI9XXX.c:1172:6:touchgfxDisplayDriverTransmitBlock	32	static
+../Core/Src/z_displ_ILI9XXX.c:960:6:Displ_drawRoundRect	40	static
+../Core/Src/z_displ_ILI9XXX.c:978:6:Displ_fillRoundRect	40	static
+../Core/Src/z_displ_ILI9XXX.c:1002:6:Displ_WString	64	static
+../Core/Src/z_displ_ILI9XXX.c:1043:6:Displ_CString	56	static
+../Core/Src/z_displ_ILI9XXX.c:1098:11:Displ_BackLight	16	static,ignoring_inline_asm
+../Core/Src/z_displ_ILI9XXX.c:1167:5:touchgfxDisplayDriverTransmitActive	4	static
+../Core/Src/z_displ_ILI9XXX.c:1181:6:touchgfxDisplayDriverTransmitBlock	32	static
