@@ -3,5 +3,5 @@
 ../Core/Src/cmd.c:52:5:cmd_p	24	static
 ../Core/Src/cmd.c:60:5:cmd_led	16	static
 ../Core/Src/cmd.c:70:5:cmd_help	8	static
-../Core/Src/cmd.c:86:5:cmd_process	24	static
-../Core/Src/cmd.c:147:5:CMD_Handler	16	static
+../Core/Src/cmd.c:87:5:cmd_process	24	static
+../Core/Src/cmd.c:148:5:CMD_Handler	16	static

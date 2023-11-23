@@ -72,6 +72,7 @@ int cmd_help(void) {
 	term_print("C[1..4]: CSV output ADC channel 1 - 4 buffer content\r\n");
 #ifdef USE_DISPLAY
 	term_print("D[1..4]: Display ADC channel 1 - 4 on TFT display\r\n");
+	term_print("D: Display all ADC channel on TFT display\r\n");
 #endif
 	term_print("L[0,1]: LED L2 OFF / ON\r\n");
 	term_print("M show measurements using all channels");

@@ -33,7 +33,7 @@ Core/Src/display.o: ../Core/Src/display.c ../Core/Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Core/Inc/fonts.h ../Core/Inc/z_displ_ILI9XXX.h \
  ../Core/Inc/z_displ_ILI9XXX_test.h ../Core/Inc/global.h \
- ../Core/Inc/calc.h ../Core/Inc/term.h
+ ../Core/Inc/calc.h ../Core/Inc/term.h ../Core/Inc/display.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -73,3 +73,4 @@ Core/Src/display.o: ../Core/Src/display.c ../Core/Inc/main.h \
 ../Core/Inc/global.h:
 ../Core/Inc/calc.h:
 ../Core/Inc/term.h:
+../Core/Inc/display.h:

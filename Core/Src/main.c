@@ -202,8 +202,6 @@ int main(void)
   display_init(); // THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
 #endif
 
-  //display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
-
   // Start UART receive via interrupt
   if (HAL_UART_Receive_IT(&huart2, (uint8_t*)&rx_byte, 1) != HAL_OK) {
     Error_Handler();
@@ -244,9 +242,9 @@ int main(void)
 	now_ticks = HAL_GetTick();
 	// look for ticks overrun
 	if (now_ticks < last_ticks) {
-	  next_process_time = now_ticks + PROCESS_INTERVAL;
-	  if (display_off_ticks) { display_off_ticks = now_ticks + DISPLAY_TIMEOUT; }
-	  display_update_ticks = now_ticks + DISPLAY_UPDATE_TIME;
+		next_process_time = now_ticks + PROCESS_INTERVAL;
+		if (display_off_ticks) { display_off_ticks = now_ticks + DISPLAY_TIMEOUT; }
+		display_update_ticks = now_ticks + DISPLAY_UPDATE_TIME;
 	}
 	last_ticks = now_ticks;		// store for compare in next iteration
 
@@ -259,7 +257,7 @@ int main(void)
 			if (now_ticks >= display_splash_ticks) {
 				display_splash_ticks = 0;
 				display_update_ticks = now_ticks;
-				Displ_CLS(BLACK);
+				display_meter_mask();
 				display_off_ticks = now_ticks + DISPLAY_TIMEOUT;
 			}
 		} else {
@@ -297,64 +295,64 @@ int main(void)
 #ifdef USE_DISPLAY
 
 		if (tft_display) {
-		  if (tft_display == 9) {
-			  term_print("Running TFT performance test ...\r\n");
-			  Displ_BackLight('1');
-			  Displ_TestAll();
-			  Displ_BackLight('0');
-			  term_print("....completed\r\n");
-		  } else {
-			  if (tft_display == 1) {
-				  Displ_BackLight('0');
-			  } else {
-				  Displ_BackLight('1');
-				  display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
-			  }
-		  }
-		  tft_display = 0;
+			if (tft_display == 9) {
+				term_print("Running TFT performance test ...\r\n");
+				Displ_BackLight('1');
+				Displ_TestAll();
+				Displ_BackLight('0');
+				term_print("....completed\r\n");
+			} else {
+				if (tft_display == 1) {
+					Displ_BackLight('0');
+				} else {
+					Displ_BackLight('1');
+					display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
+				}
+			}
+		tft_display = 0;
 		}
 
 #endif
 
-	  }
+		}
 
-	  // Check if we have missed processing DMA data sets
-	  // This occurs if the main loop execution takes longer than 20ms (e.g. terminal output of lots of data)
-	  if ( (adc1_dma_l_count > 1) || (adc1_dma_h_count > 1) || (adc2_dma_l_count > 1) || (adc2_dma_h_count > 1)) {
-		  term_print("Processing has missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
-		  if (adc1_dma_l_count > 1) { adc1_dma_l_count = 1; }
-		  if (adc1_dma_h_count > 1) { adc1_dma_h_count = 1; }
-		  if (adc2_dma_l_count > 1) { adc2_dma_l_count = 1; }
-		  if (adc2_dma_h_count > 1) { adc2_dma_h_count = 1; }
-	  }
+		// Check if we have missed processing DMA data sets
+		// This occurs if the main loop execution takes longer than 20ms (e.g. terminal output of lots of data)
+		if ( (adc1_dma_l_count > 1) || (adc1_dma_h_count > 1) || (adc2_dma_l_count > 1) || (adc2_dma_h_count > 1)) {
+			term_print("Processing has missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
+			if (adc1_dma_l_count > 1) { adc1_dma_l_count = 1; }
+			if (adc1_dma_h_count > 1) { adc1_dma_h_count = 1; }
+			if (adc2_dma_l_count > 1) { adc2_dma_l_count = 1; }
+			if (adc2_dma_h_count > 1) { adc2_dma_h_count = 1; }
+		}
 
-	  // Process DMA buffers
-	  if (adc1_dma_l_count > 0) {
-		  if (calc_process_dma_buffer(0,ADC1_IDX) != 0) {
-			  term_print("Processing ADC1 DMA 1st half failed\r\n");
-		  }
-		  adc1_dma_l_count--;
-	  }
-	  if (adc1_dma_h_count > 0) {
-	  	  if (calc_process_dma_buffer(1,ADC1_IDX) != 0) {
-	  		term_print("Processing ADC1 DMA 2nd half failed\r\n");
-	  	  }
-	  	  adc1_dma_h_count--;
-	  }
-	  if (adc2_dma_l_count > 0) {
-	  	  if (calc_process_dma_buffer(0,ADC2_IDX) != 0) {
-	  		term_print("Processing ADC2 DMA 1st half failed\r\n");
-	  	  }
-	  	  adc2_dma_l_count--;
-	  }
-	  if (adc2_dma_h_count > 0) {
-	  	  if (calc_process_dma_buffer(1,ADC2_IDX) != 0) {
-	  		term_print("Processing ADC2 DMA 2nd half failed\r\n");
-	  	  }
-	   	  adc2_dma_h_count--;
-	  }
-  }
-  /* USER CODE END 3 */
+		// Process DMA buffers
+		if (adc1_dma_l_count > 0) {
+			if (calc_process_dma_buffer(0,ADC1_IDX) != 0) {
+				term_print("Processing ADC1 DMA 1st half failed\r\n");
+			}
+			adc1_dma_l_count--;
+		}
+		if (adc1_dma_h_count > 0) {
+			if (calc_process_dma_buffer(1,ADC1_IDX) != 0) {
+				term_print("Processing ADC1 DMA 2nd half failed\r\n");
+			}
+			adc1_dma_h_count--;
+		}
+		if (adc2_dma_l_count > 0) {
+			if (calc_process_dma_buffer(0,ADC2_IDX) != 0) {
+			term_print("Processing ADC2 DMA 1st half failed\r\n");
+			}
+			adc2_dma_l_count--;
+		}
+		if (adc2_dma_h_count > 0) {
+			if (calc_process_dma_buffer(1,ADC2_IDX) != 0) {
+			term_print("Processing ADC2 DMA 2nd half failed\r\n");
+			}
+			adc2_dma_h_count--;
+		}
+	}
+/* USER CODE END 3 */
 }
 
 /**

@@ -195,6 +195,7 @@ void calc_downsample(uint8_t bufnum) {
 
 /*
  * Calculate all measurements
+ * returns 0 if measurements are OK, -1 if zero crossing is not detected
  *
  */
 int calc_measurements(void) {

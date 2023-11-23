@@ -24,9 +24,9 @@ struct sampleBufMeta {
 
 // line below controls TFT display usage
 #define USE_DISPLAY
-#define DISPLAY_TIMEOUT 30000		// [ms] display timeout (LCD screen saver)
+#define DISPLAY_TIMEOUT 300000		// [ms] display timeout (LCD screen saver)
 #define DISPLAY_UPDATE_TIME 350	// [ms] meter display update time
-#define SPLASH_SCREEN_TIME 20000	// [ms] time to display splash screen
+#define SPLASH_SCREEN_TIME 1500	// [ms] time to display splash screen
 
 #define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading
 #define ADC_FS_MV 3300		// millivolt at full scale

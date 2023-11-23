@@ -13,6 +13,7 @@
 
 
 #include "main.h"
+#include "term.h"
 
 extern SPI_HandleTypeDef DISPL_SPI_PORT;
 
@@ -831,14 +832,6 @@ void Displ_WChar(uint16_t x, uint16_t y, char ch, sFONT font, uint8_t size, uint
     const uint8_t *pos;
 	uint8_t wsize=font.Width; //printing char width
 
-	// DMA buffer must be cleared before we write over it
-	while (!Displ_SpiAvailable) {};  // waiting for a free SPI port. Flag is set to 1 by transmission-complete interrupt callback
-	/* Note: this is not the correct solution. We have 2 DMA buffers, the original code relies on one buffer been emptied
-	 * via DMA while the second buffer is being written. However, given a large enough data qty in the buffers (e.g. font 30)
-	 * the first buffer is still being emptied, the second buffer filled, and the next operation over writes the first buffer
-	 * before DMA has finished with it, hence corrupting its contents before it is writen to the display.
-	 */
-
 	if (size==2)
 		wsize<<= 1;
 	bufSize=0;
@@ -943,6 +936,10 @@ void Displ_WChar(uint16_t x, uint16_t y, char ch, sFONT font, uint8_t size, uint
 #endif
 
 	Displ_SetAddressWindow(x, y, x+wsize-1, y+font.Height-1);
+	// Buffer size too small !!!
+	if (bufSize > SIZEBUF) {
+		term_print("%s %s() Line %d - bufSize error, require %d but size is %d!!\r\n", __FILE__, __FUNCTION__, __LINE__, bufSize, SIZEBUF);
+	}
 	Displ_WriteData(dispBuffer,bufSize,0);
 	dispBuffer = (dispBuffer==dispBuffer1 ? dispBuffer2 : dispBuffer1); // swapping buffer
 
