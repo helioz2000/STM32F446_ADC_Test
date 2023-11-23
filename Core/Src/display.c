@@ -23,13 +23,14 @@ extern struct sampleBufMeta sample_buf_meta[];
 extern char product_msg[];
 extern char copyright_msg[];
 extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
+extern uint8_t meter_readings_invalid;
 
-
-uint16_t channel_colour[4] = { YELLOW, CYAN, GREEN, ORANGE};
-uint16_t curve_y[800];		// store the curve before drawing, enables overwrite on next curve
+uint16_t channel_colour[4] = { GREEN, ORANGE, CYAN, BLUE};
+int curve_y[ADC_NUM_DATA/4];		// store the curve before drawing, enables overwrite on next curve
 uint16_t curve_y_zero;		// zero line of curve
 uint16_t curve_y_size = 80;
 uint16_t curve_x_zero = 15;
+const uint16_t graph_border = 2;
 uint16_t aligned_curve[ADC_NUM_BUFFERS][800];	// raw samples reduced to one full cycle (around 400 samples)
 uint16_t curve_len = 0;
 char str[32];
@@ -84,26 +85,31 @@ void display_corners() {
 
 
 void display_update_meter() {
-	uint8_t valid = 1;
-	//Displ_CLS(BLACK);
-	//term_print("update\r\n");
-	if (sample_buf_meta[ADC_CH_V].measurements_valid != 1) {
-		if (calc_measurements() != 0) { valid = 0; }
-	}
-	if (valid) {
+
+	if (!meter_readings_invalid) {
+		// V
 		snprintf(str,sizeof(str),"%3.0f", metervalue_v);
 		Displ_WString(9, 7, str , Font30, 1, GREEN, BLACK);
+		// I
 		snprintf(str,sizeof(str),"%4.1f", metervalue_i1);
-		Displ_WString(120, 7, str , Font30, 1, GREEN, BLACK);
+		Displ_WString(120, 7, str , Font30, 1, ORANGE, BLACK);
+		// VA
 		snprintf(str,sizeof(str),"%7.1f", metervalue_va1 );
 		Displ_WString(9, 48, str , Font30, 1, YELLOW, BLACK);
+		// W
 		snprintf(str,sizeof(str),"%7.1f", metervalue_w1 );
 		Displ_WString(9, 89, str , Font30, 1, YELLOW, BLACK);
+		// PF
 		snprintf(str,sizeof(str),"%4.2f", metervalue_pf1 );
 		Displ_WString(9, 130, str , Font30, 1, WHITE, BLACK);
-		snprintf(str,sizeof(str),"%4.1f", acos(metervalue_pf1) * (180.0 / 3.14159265) );
-		Displ_WString(138, 130, str , Font24, 1, WHITE, BLACK);
-	} else {		// invalid measurements
+		// Angle
+		if (metervalue_pf1 < 0) {
+			snprintf(str,sizeof(str),"%4.0f", acos(metervalue_pf1) * (180.0 / 3.14159265) );
+		} else {
+			snprintf(str,sizeof(str),"%4.1f", acos(metervalue_pf1) * (180.0 / 3.14159265) );
+		}
+		Displ_WString(138, 130, str , Font30, 1, WHITE, BLACK);
+	} else {		// display for invalid measurements
 		Displ_WString(9, 7, "---" , Font30, 1, GREEN, BLACK);
 		Displ_WString(120, 7, "--.-" , Font30, 1, GREEN, BLACK);
 		Displ_WString(9, 48, "-----.-" , Font30, 1, YELLOW, BLACK);
@@ -111,7 +117,7 @@ void display_update_meter() {
 		Displ_WString(9, 130, "-.--" , Font30, 1, WHITE, BLACK);
 		Displ_WString(138, 130, "--.-" , Font30, 1, WHITE, BLACK);
 	}
-	display_show_curve(ADC_CH_V);
+	display_show_curves();
 }
 
 /*
@@ -130,6 +136,7 @@ void display_meter_mask() {
 	Displ_Line(0,ypos+box_height,display_x-1,ypos+box_height,border_col);
 	Displ_Line(display_x-1, ypos+box_height, display_x-1, 0, border_col);
 	Displ_WChar(75, ypos+9, 'V', Font24, 1, font_col, back_col);
+	font_col = ORANGE;
 	Displ_WChar(display_x-30, 9, 'A', Font24, 1, font_col, back_col);
 	// VA
 	ypos += box_height+1;
@@ -158,13 +165,13 @@ void display_meter_mask() {
 	Displ_WString(95, ypos+9, "PF", Font24, 1, font_col, back_col);
 	Displ_WChar(display_x-22, 130, 0x60, Font30, 1, font_col, back_col);
 
-	// Curve Box
+	// Graph Box
 	ypos += box_height+1;
 	border_col = BLUE;
-	curve_y_size = display_y-ypos-4;
+	curve_y_size = display_y-ypos-graph_border*2;
 	curve_y_zero = ypos + curve_y_size / 2;
-	Displ_Border(0,ypos,display_x,display_y-ypos, 2, border_col);
-	Displ_Line(curve_x_zero, curve_y_zero, curve_x_zero+200, curve_y_zero, WHITE);
+	Displ_Border(0,ypos,display_x,display_y-ypos, graph_border, border_col);
+	Displ_Line(curve_x_zero, curve_y_zero, curve_x_zero+210, curve_y_zero, WHITE);
 }
 
 /*
@@ -181,8 +188,12 @@ int display_align_curves() {
 		for (i=0; i<SAMPLE_BUF_SIZE; i++ ) {
 			aligned_curve[ADC_CH_V][i] = sample_buf[ADC_CH_V][i];
 			aligned_curve[ADC_CH_I1][i] = sample_buf[ADC_CH_I1][i];
+#if I2_IN_USE
 			aligned_curve[ADC_CH_I2][i] = sample_buf[ADC_CH_I2][i];
+#endif
+#if I3_IN_USE
 			aligned_curve[ADC_CH_I3][i] = sample_buf[ADC_CH_I3][i];
+#endif
 		}
 		return SAMPLE_BUF_SIZE;
 	}
@@ -192,8 +203,12 @@ int display_align_curves() {
 		dest_idx++;
 		aligned_curve[ADC_CH_V][dest_idx] = sample_buf[ADC_CH_V][i];
 		aligned_curve[ADC_CH_I1][dest_idx] = sample_buf[ADC_CH_I1][i];
+#if I2_IN_USE
 		aligned_curve[ADC_CH_I2][dest_idx] = sample_buf[ADC_CH_I2][i];
+#endif
+#if I3_IN_USE
 		aligned_curve[ADC_CH_I3][dest_idx] = sample_buf[ADC_CH_I3][i];
+#endif
 	}
 
 	/*
@@ -217,77 +232,98 @@ int display_align_curves() {
 		dest_idx++;
 		aligned_curve[ADC_CH_V][dest_idx] = sample_buf[ADC_CH_V][i];
 		aligned_curve[ADC_CH_I1][dest_idx] = sample_buf[ADC_CH_I1][i];
+#if I2_IN_USE
 		aligned_curve[ADC_CH_I2][dest_idx] = sample_buf[ADC_CH_I2][i];
+#endif
+#if I3_IN_USE
 		aligned_curve[ADC_CH_I3][dest_idx] = sample_buf[ADC_CH_I3][i];
+#endif
 	}
 
 	return ++dest_idx;
 }
 
+/*
+ * Draw one curve
+ * parameter colour: curve colour
+ * parameter dont_clear: set to 1 to prevent clearing of the previous curve
+ * The curve display area is cleared and the zero line is drawn.
+ * Each point in the curve_y array is drawn as a line to the previous point
+ */
 void draw_curve(uint16_t colour, uint8_t dont_clear) {
+
 	if (! dont_clear) {
 		// first clear the curve area
-		Displ_FillArea(2,display_y-curve_y_size+2,display_x-4,curve_y_size-4, BLACK);
+		Displ_FillArea(2,display_y-curve_y_size-2,display_x-graph_border*2,curve_y_size, BLACK);
 	}
 	// draw curve border
-	//Displ_Border(0,display_y-curve_y_size,display_x-1,curve_y_size, 5, BLUE);
+	//Displ_Border(0,display_y-curve_y_size,display_x-1,curve_y_size, graph_border, BLUE);
 	// draw zero line
 	Displ_Line(curve_x_zero, curve_y_zero, curve_x_zero+curve_len, curve_y_zero, WHITE);
 	// draw the curve
-	for (int x=1; x<curve_len-1; x++) {
-		Displ_Line(x+curve_x_zero-1, curve_y[x-1], x+curve_x_zero, curve_y[x], colour);
+	for (int x=1; x<curve_len; x++) {
+		Displ_Line(x + curve_x_zero-1, curve_y_zero - curve_y[x-1], x + curve_x_zero, curve_y_zero - curve_y[x], colour);
 	}
 }
 
+/*
+ * Makes the curve data by performing two steps
+ * 1) Two adjacent data points are averaged to half the number of data points
+ * 2) The data points are raw ADC values ranging between 0 and 4095. The curve data
+ * represents plus/minus values centered around the half way point of the data range.
+ * The (+/-)curve points are scaled to fit the vertical resolution of the graph.
+ */
 void make_curve(uint8_t bufnum) {
 	int value;
-	int y_max = display_y -1;		// max Y pixel position
-	int y_offset = 0;
 	int scale_factor = 1;
 	int src_idx = 0;
+	int zero_value = (sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min) /2;
+
+	//term_print("zero_value = %d\r\n", zero_value);
 
 	float fScale = (float)curve_y_size / (float)sample_buf_meta[bufnum].max;
 	if (fScale < 1) {
 		scale_factor = trunc(1/fScale)+1; // divisor
-		value = sample_buf_meta[bufnum].max / scale_factor;
+		//value = sample_buf_meta[bufnum].max / scale_factor;
 	} else {
 		scale_factor = trunc(fScale);	// multiplier
-		value = sample_buf_meta[bufnum].max * scale_factor;
+		//value = sample_buf_meta[bufnum].max * scale_factor;
 	}
 
 	curve_len = display_align_curves() / 2;
-	//term_print("%s() - curve_len = %d\r\n",__FUNCTION__, curve_len);
-	// calculate the new curve
+	// calculate the new curve as +- values around the centre
 	// set multiplier and divider to ensure the function can handle a wide range of values
 	if (fScale < 1) {
 		// calculate start of first line
 		value = (aligned_curve[bufnum][src_idx] + aligned_curve[bufnum][src_idx+1]) / 2;
-		curve_y[0] = y_max - (value / scale_factor + y_offset) ;
-		for (int pos_x=1; pos_x < curve_len-1; pos_x++) {
+		curve_y[0] = (value  - zero_value) / scale_factor;
+		for (int pos_x=1; pos_x < curve_len; pos_x++) {
 			src_idx+=2;
 			value = (aligned_curve[bufnum][src_idx] + aligned_curve[bufnum][src_idx+1]) / 2;
 			// calculate reading pixel on display using the scale value
-			curve_y[pos_x] = y_max - (value / scale_factor + y_offset);
+			curve_y[pos_x] = (value - zero_value) / scale_factor ;
+			//curve_y[pos_x] = y_max - (value / scale_factor) + y_offset;
 		}
 	} else {
 		// calculate start of first line
 		value = (aligned_curve[bufnum][src_idx] + aligned_curve[bufnum][src_idx+1]) / 2;
-		curve_y[0] = y_max - (value * scale_factor + y_offset) ;
-		for (int pos_x=1; pos_x < curve_len-1; pos_x++) {
+		curve_y[0] = (value - zero_value) * scale_factor;
+		for (int pos_x=1; pos_x < curve_len; pos_x++) {
 			src_idx+=2;
 			value = (aligned_curve[bufnum][src_idx] + aligned_curve[bufnum][src_idx+1]) / 2;
 			// calculate reading pixel on display using the scale value
-			curve_y[pos_x] = y_max - (value * scale_factor + y_offset);
+			curve_y[pos_x] = (value - zero_value) * scale_factor ;
+			//curve_y[pos_x] = y_max - (value * scale_factor) + y_offset;
 		}
 	}
 }
 
 /*
- * Display curves for all channels on TFT display
+ * Display curves for all configured channels on TFT display
  */
 void display_show_curves(void) {
 	uint8_t dont_clear = 0;
-	for (int i=0; i<4; i++) {
+	for (int i=0; i<=NUM_I_SENSORS; i++) {
 		make_curve(i);
 		draw_curve(channel_colour[i], dont_clear);
 		dont_clear = 1;

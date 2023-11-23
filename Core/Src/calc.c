@@ -23,6 +23,18 @@ extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for ch
 
 struct sampleBufMeta sample_buf_meta[ADC_NUM_BUFFERS];					// store meta data for associated buffer
 
+uint8_t meter_readings_invalid = 0;
+
+#define FILTER_NUM 10
+float v_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float i1_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float va1_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float w1_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float pf1_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+float v_measured, i1_measured, va1_measured, w1_measured, pf1_measured;
+
+
 //inline int16_t MAX(int16_t a, int16_t b) { return((a) > (b) ? a : b); }
 //inline int16_t MIN(int16_t a, int16_t b) { return((a) < (b) ? a : b); }
 
@@ -193,10 +205,48 @@ void calc_downsample(uint8_t bufnum) {
 	calc_zero_detector(bufnum, range / 2 + sample_buf_meta[bufnum].min, range/5);
 }
 
+void calc_filter_measurements(void) {
+
+	// shift filter values to make room for new measurement
+	for (int i=0; i<FILTER_NUM-1; i++) {
+		v_filter[i] = v_filter[i+1];
+		i1_filter[i] = i1_filter[i+1];
+		va1_filter[i] = va1_filter[i+1];
+		w1_filter[i] = w1_filter[i+1];
+		pf1_filter[i] = pf1_filter[i+1];
+	}
+	// add new measurements
+	v_filter[FILTER_NUM-1] = v_measured;
+	i1_filter[FILTER_NUM-1] = i1_measured;
+	va1_filter[FILTER_NUM-1] = va1_measured;
+	w1_filter[FILTER_NUM-1] = w1_measured;
+	pf1_filter[FILTER_NUM-1] = pf1_measured;
+
+	// zero readings
+	metervalue_v = 0.0;
+	metervalue_i1 = 0.0;
+	metervalue_va1 = 0.0;
+	metervalue_w1 = 0.0;
+	metervalue_pf1 = 0.0;
+	// add filter values
+	for (int i=0; i<FILTER_NUM; i++) {
+		metervalue_v += v_filter[i];
+		metervalue_i1 += i1_filter[i];
+		metervalue_va1 += va1_filter[i];
+		metervalue_w1 += w1_filter[i];
+		metervalue_pf1 += pf1_filter[i];
+	}
+	// calculate filtered valued
+	metervalue_v /= FILTER_NUM;
+	metervalue_i1 /= FILTER_NUM;
+	metervalue_va1 /= FILTER_NUM;
+	metervalue_w1 /= FILTER_NUM;
+	metervalue_pf1 /= FILTER_NUM;
+}
+
 /*
  * Calculate all measurements
  * returns 0 if measurements are OK, -1 if zero crossing is not detected
- *
  */
 int calc_measurements(void) {
 	int i;
@@ -205,7 +255,6 @@ int calc_measurements(void) {
 	double i1_va_acc = 0;
 	double i1_w_acc = 0;			// accumulating I1 values where I > 0 (for W calculation)
 	uint16_t num_readings = 0;		// number of squared readings for v, i and va
-	//uint16_t num_w_readings = 0;	// number of squared readings for kw
 	int16_t v_reading;			// always positive, we are using the positive half wave
 	int16_t i_reading;			// could be negative if current is leading or lagging
 	double va_instant;			// instant VA value
@@ -213,10 +262,18 @@ int calc_measurements(void) {
 	uint16_t i1_zero = (sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min) / 2;
 	float w=0, va=0;
 
-
 	// Calculate values using the positive half of the sine wave
 
-	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < 0) { return -1; }	// do we have zero crossing?
+	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < 0) { 	// do we have zero crossing?
+		meter_readings_invalid = 1;
+		//term_print("%s() - invalid measurements\r\n", __FUNCTION__);
+		return -1;
+	} else {
+		meter_readings_invalid = 0;
+	}
+
+	//term_print("%s()\r\n", __FUNCTION__);
+
 	// add up squared measurements
 	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < sample_buf_meta[ADC_CH_V].zero_cross_neg) {
 		for (i=sample_buf_meta[ADC_CH_V].zero_cross_pos; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
@@ -230,7 +287,6 @@ int calc_measurements(void) {
 				i1_va_acc += va_instant;
 			} else {
 				i1_w_acc += abs(va_instant);
-				//num_w_readings++;
 			}
 		}
 	} else {
@@ -245,7 +301,6 @@ int calc_measurements(void) {
 				i1_va_acc += va_instant;
 			} else {
 				i1_w_acc += abs(va_instant);
-				//num_w_readings++;
 			}
 		}
 		for (i=SAMPLE_BUF_OVERLAP; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
@@ -260,26 +315,25 @@ int calc_measurements(void) {
 				i1_va_acc += va_instant;
 			} else {
 				i1_w_acc += abs(va_instant);
-				//num_w_readings++;
 			}
 		}
 	}
 
-	metervalue_v = calc_adc_raw_to_V (sqrt((v_sq_acc / num_readings)));		// RMS voltage
-	metervalue_i1 = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
+	v_measured = calc_adc_raw_to_V (sqrt((v_sq_acc / num_readings)));		// RMS voltage
+	i1_measured = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
 	if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
 	if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
-	metervalue_va1 = metervalue_v * metervalue_i1;
+	va1_measured = v_measured * i1_measured;
 	if (w > 0) {
-		metervalue_w1 = va - w;
+		w1_measured = va - w;
 	} else {
-		metervalue_w1 = metervalue_va1;
+		w1_measured = va1_measured;
 	}
-	metervalue_pf1 = metervalue_w1 / metervalue_va1;
+	pf1_measured = w1_measured / va1_measured;
+	sample_buf_meta[ADC_CH_V].measurements_valid = 1;
 
-	//term_print("%.1fVA - %.1fW = %.1f (%d/%d readings)\r\n", va, w, va-w, num_w_readings, num_readings ) ;
-	//term_print("Vrms x Irms = %.1fVA\r\n", metervalue_v * metervalue_i1) ;
-	//term_print("Meter: %.1fVA %.1fW PF=%.2f (%.1fDeg)f\r\n", metervalue_va1, metervalue_kw1, metervalue_pf1, acos(metervalue_pf1) * (180.0 / 3.14159265)) ;
+	calc_filter_measurements();
+
 	return 0;
 }
 

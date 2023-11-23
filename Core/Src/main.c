@@ -90,6 +90,7 @@ uint32_t display_off_ticks;
 uint32_t display_splash_ticks;
 uint32_t display_update_ticks;
 uint32_t now_ticks, last_ticks;
+uint32_t next_measurement_time;
 uint32_t next_process_time;
 #define PROCESS_INTERVAL 100;	// run slow process every n ms
 
@@ -233,7 +234,8 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   next_process_time = HAL_GetTick() + PROCESS_INTERVAL;
-  term_print("current: %lu next: %lu\r\n", HAL_GetTick(), next_process_time);
+  //term_print("current: %lu next: %lu\r\n", HAL_GetTick(), next_process_time);
+  next_measurement_time = HAL_GetTick() + MEASUREMENT_INTERVAL;
   while (1)
   {
     /* USER CODE END WHILE */
@@ -245,8 +247,15 @@ int main(void)
 		next_process_time = now_ticks + PROCESS_INTERVAL;
 		if (display_off_ticks) { display_off_ticks = now_ticks + DISPLAY_TIMEOUT; }
 		display_update_ticks = now_ticks + DISPLAY_UPDATE_TIME;
+		next_measurement_time = now_ticks + MEASUREMENT_INTERVAL;
 	}
 	last_ticks = now_ticks;		// store for compare in next iteration
+
+	// perform measurements
+	if ( now_ticks >= next_measurement_time ) {
+		next_measurement_time += MEASUREMENT_INTERVAL;
+		calc_measurements();
+	}
 
 	// process slow tasks
 	if ( now_ticks >= next_process_time ) {
@@ -307,6 +316,7 @@ int main(void)
 				} else {
 					Displ_BackLight('1');
 					display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
+					display_meter_mask();
 				}
 			}
 		tft_display = 0;
@@ -319,7 +329,7 @@ int main(void)
 		// Check if we have missed processing DMA data sets
 		// This occurs if the main loop execution takes longer than 20ms (e.g. terminal output of lots of data)
 		if ( (adc1_dma_l_count > 1) || (adc1_dma_h_count > 1) || (adc2_dma_l_count > 1) || (adc2_dma_h_count > 1)) {
-			term_print("Processing has missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
+			//term_print("Processing has missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
 			if (adc1_dma_l_count > 1) { adc1_dma_l_count = 1; }
 			if (adc1_dma_h_count > 1) { adc1_dma_h_count = 1; }
 			if (adc2_dma_l_count > 1) { adc2_dma_l_count = 1; }

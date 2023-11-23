@@ -9,9 +9,7 @@
 #define INC_GLOBAL_H_
 
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 1
-
-
+#define VERSION_MINOR 2
 
 struct sampleBufMeta {
 	uint16_t min;			// minimum value in buffer
@@ -21,6 +19,20 @@ struct sampleBufMeta {
 	uint8_t measurements_valid;	// 0 - measurements are not valid (have not been calculated)
 	int rms_value;			// calculated RMS value
 };
+
+// Enable lines below to activate code for additional channels
+//#define I2_IN_USE
+//#define I3_IN_USE
+
+#define NUM_I_SENSORS 1
+
+#ifdef I2_IN_USE
+#define NUM_I_SENSORS 2
+#elif I3_IN_USE
+#define NUM_I_SENSORS 3
+#endif
+
+#define MEASUREMENT_INTERVAL 200	// [ms] calculate measurements from curves and add them to the filter
 
 // line below controls TFT display usage
 #define USE_DISPLAY
