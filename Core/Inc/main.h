@@ -99,6 +99,9 @@ void Error_Handler(void);
 #define ESP01_EN_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
+#define TOUCH_IRQ_Pin GPIO_PIN_4
+#define TOUCH_IRQ_GPIO_Port GPIOB
+#define TOUCH_IRQ_EXTI_IRQn EXTI4_IRQn
 #define DISPL_RST_Pin GPIO_PIN_6
 #define DISPL_RST_GPIO_Port GPIOB
 #define ESP01_RST_Pin GPIO_PIN_7

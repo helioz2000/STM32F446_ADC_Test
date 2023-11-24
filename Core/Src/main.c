@@ -70,6 +70,7 @@ uint16_t rx_count = 0;
 uint8_t rx_byte;
 uint8_t rx_buff[20];
 uint8_t rx_cmd_ready = 0;
+__IO uint8_t display_activate = 0;	// screen saver off
 
 uint8_t adc_restart = 0;
 uint8_t tft_display = 0;
@@ -273,7 +274,10 @@ int main(void)
 		// Meter display update
 			if (now_ticks >= display_update_ticks) {
 				display_update_ticks = now_ticks + DISPLAY_UPDATE_TIME;
-				display_update_meter();
+				// Don't update unless the display back light is on
+				if (HAL_GPIO_ReadPin(DISPL_LED_GPIO_Port, DISPL_LED_Pin) == GPIO_PIN_SET) {
+					display_update_meter();
+				}
 			}
 		}
 
@@ -322,6 +326,13 @@ int main(void)
 		tft_display = 0;
 		}
 
+		if (display_activate) {		// set by touch screen or blue button
+			display_activate = 0;
+			display_meter_mask();
+			Displ_BackLight('1');
+			display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
+		}
+
 #endif
 
 		}
@@ -362,7 +373,7 @@ int main(void)
 			adc2_dma_h_count--;
 		}
 	}
-/* USER CODE END 3 */
+  /* USER CODE END 3 */
 }
 
 /**
@@ -777,6 +788,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(TOUCH_CS_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : TOUCH_IRQ_Pin */
+  GPIO_InitStruct.Pin = TOUCH_IRQ_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(TOUCH_IRQ_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : DISPL_RST_Pin ESP01_RST_Pin */
   GPIO_InitStruct.Pin = DISPL_RST_Pin|ESP01_RST_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -785,6 +802,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
@@ -793,6 +813,19 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+// External GPIO Interrupt
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	switch(GPIO_Pin) {
+	case GPIO_PIN_4:		// IRQ from Touch screen
+		display_activate = 1;
+		break;
+	case GPIO_PIN_13:		// Blue button on Development board
+		display_activate = 1;
+		break;
+	}
+}
 
 // ADC conversion - DMA buffer 2nd half full
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)

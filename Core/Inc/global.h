@@ -36,7 +36,7 @@ struct sampleBufMeta {
 
 // line below controls TFT display usage
 #define USE_DISPLAY
-#define DISPLAY_TIMEOUT 300000		// [ms] display timeout (LCD screen saver)
+#define DISPLAY_TIMEOUT 300000	// [ms] display timeout (LCD screen saver)
 #define DISPLAY_UPDATE_TIME 350	// [ms] meter display update time
 #define SPLASH_SCREEN_TIME 1500	// [ms] time to display splash screen
 

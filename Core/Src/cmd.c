@@ -2,9 +2,9 @@
  * cmd.c
  *
  *  Created on: Oct 27, 2023
- *      Author: eb
+ *      Author: Erwin Bejsta
  *
- *  Command interpreter
+ *  Command interpreter for terminal interface
  */
 
 #include "stm32f4xx_hal.h"

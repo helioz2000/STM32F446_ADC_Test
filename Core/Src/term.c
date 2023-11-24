@@ -2,7 +2,9 @@
  * term.c
  *
  *  Created on: Nov 6, 2023
- *      Author: eb
+ *      Author: Erwin Bejsta
+ *
+ *  Handle terminal interface
  */
 
 #include <stdio.h>
@@ -71,9 +73,10 @@ void term_show_measurements() {
 void term_show_channel(uint8_t bufnum) {
 	if (bufnum >= ADC_NUM_BUFFERS) { return; }
 	if (sample_buf_meta[bufnum].measurements_valid != 1) {
-		if (calc_channel(bufnum) != 0) {
-			term_print("Buffer %d - invalid readings\r\n", bufnum);
-			return; } ;
+		term_print("ADC raw: %d - %d (%d)\r\n", sample_buf_meta[bufnum].min, sample_buf_meta[bufnum].max, sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min  );
+		term_print("Range: %dmV - %dmV\r\n", calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].min), calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max) );
+		term_print("Buffer %d - invalid readings\r\n", bufnum);
+		return;
 	}
 	int pp_reading = sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min;
 	term_print("Measurements Buffer %d:\r\n", bufnum);

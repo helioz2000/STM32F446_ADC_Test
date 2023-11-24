@@ -2,7 +2,24 @@
  * calc.c
  *
  *  Created on: Oct 29, 2023
- *      Author: eb
+ *      Author: Erwin Bejsta
+ *
+ *  This function handles raw ADC readings and calculates measurements.
+ *
+ *  Overview
+ *  ========
+ *  ADC readings are triggered by a time interrupt (TIM2) which occurs once every 25us. This interrupt is tuned for each
+ *  individual board to get maximum precision and provides 800 samples per cycle (40kHz).
+ *  ADC readings are stored interleaved in a DMA buffer which holds twice the number of required readings. Every time
+ *  the buffer is half or full filled an interrupt is called and the ADC readings are processed.
+ *  calc_process_dma_buffer() splits one DMA buffer (2Ch interleaved data) and stores each channel in adc_raw_buf[].
+ *  To remove noise we down-sample the readings, by averaging adjacent values, into sample_buf[].
+ *  adc_raw_buf[] holds 840 readings (21ms) to ensure capture of at least one full cycle.
+ *  sample_buf[] holds 420 representing 21ms and is used for all measurement calculations.
+ *  sample_buf_meta[] holds summary data of the corresponding buffer.
+ *  A zero detector is run over each sample_buf[] to establish the relative location of the positive and negative zero crossing.
+ *  If zero crossings can't be reliably established then sample_buf_meta[].measurements_valid will be zero.
+ *  If the V sample_buf[] is invalid, the I samples are of no use.
  */
 
 #include <stdint.h>
@@ -44,7 +61,7 @@ float v_measured, i1_measured, va1_measured, w1_measured, pf1_measured;
  * parameter second_half: > 0 to process 2nd half of buffer, 0 = 1st half of buffer
  * parameter adc_num: 0 = ADC1, 1 = ADC2 (use ADC1_IDX or ADC2_IDX)
  * returns: -1 on failure, 0 if OK
- * Split the multi channel readings from the DMA buffer into adc_raw_buf which is
+ * Split the interleaved channel readings from the DMA buffer into adc_raw_buf which is
  * structured to hold the readings for one channel per array element.
  * This function also establishes the min/max values for each channel
  * Note: Each ADC is assigned one DMA buffer.
@@ -345,7 +362,7 @@ int calc_measurements(void) {
  * The RMS value is calculate by adding the square of each reading to an accumulator and then
  * diving the accumulator by the number of readings.
  */
-int calc_channel(uint8_t bufnum) {
+/*int calc_channel(uint8_t bufnum) {
 	int i;
 	uint64_t squared_acc = 0;		// accumulating the squared values
 	uint16_t num_readings = 0;		// number of squared readings
@@ -378,7 +395,7 @@ int calc_channel(uint8_t bufnum) {
 	sample_buf_meta[bufnum].rms_value = sqrt((squared_acc / num_readings));
 	sample_buf_meta[bufnum].measurements_valid = 1;
 	return 0;
-}
+}*/
 
 /*
  * Convert ADC raw reading to mv

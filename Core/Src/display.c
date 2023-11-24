@@ -111,7 +111,7 @@ void display_update_meter() {
 		Displ_WString(138, 130, str , Font30, 1, WHITE, BLACK);
 	} else {		// display for invalid measurements
 		Displ_WString(9, 7, "---" , Font30, 1, GREEN, BLACK);
-		Displ_WString(120, 7, "--.-" , Font30, 1, GREEN, BLACK);
+		Displ_WString(120, 7, "--.-" , Font30, 1, ORANGE, BLACK);
 		Displ_WString(9, 48, "-----.-" , Font30, 1, YELLOW, BLACK);
 		Displ_WString(9, 89, "-----.-" , Font30, 1, YELLOW, BLACK);
 		Displ_WString(9, 130, "-.--" , Font30, 1, WHITE, BLACK);
@@ -247,10 +247,11 @@ int display_align_curves() {
  * Draw one curve
  * parameter colour: curve colour
  * parameter dont_clear: set to 1 to prevent clearing of the previous curve
+ * parameter centre_zero: set to 1 to draw curve around a centered zero line, otherwise from bottom
  * The curve display area is cleared and the zero line is drawn.
  * Each point in the curve_y array is drawn as a line to the previous point
  */
-void draw_curve(uint16_t colour, uint8_t dont_clear) {
+void draw_curve(uint16_t colour, uint8_t dont_clear, uint8_t centre_zero) {
 
 	if (! dont_clear) {
 		// first clear the curve area
@@ -258,11 +259,18 @@ void draw_curve(uint16_t colour, uint8_t dont_clear) {
 	}
 	// draw curve border
 	//Displ_Border(0,display_y-curve_y_size,display_x-1,curve_y_size, graph_border, BLUE);
-	// draw zero line
-	Displ_Line(curve_x_zero, curve_y_zero, curve_x_zero+curve_len, curve_y_zero, WHITE);
-	// draw the curve
-	for (int x=1; x<curve_len; x++) {
-		Displ_Line(x + curve_x_zero-1, curve_y_zero - curve_y[x-1], x + curve_x_zero, curve_y_zero - curve_y[x], colour);
+
+	if (centre_zero) {
+		// draw zero line
+		Displ_Line(curve_x_zero, curve_y_zero, curve_x_zero+curve_len, curve_y_zero, WHITE);
+		// draw the curve
+		for (int x=1; x<curve_len; x++) {
+			Displ_Line(x + curve_x_zero-1, curve_y_zero - curve_y[x-1], x + curve_x_zero, curve_y_zero - curve_y[x], colour);
+		}
+	} else {	// display for non-AC wave forms
+		for (int x=1; x<curve_len; x++) {
+			Displ_Line(x + curve_x_zero-1, curve_y_zero + (curve_y[x-1]/2), x + curve_x_zero, curve_y_zero + (curve_y[x]/2), colour);
+		}
 	}
 }
 
@@ -277,7 +285,16 @@ void make_curve(uint8_t bufnum) {
 	int value;
 	int scale_factor = 1;
 	int src_idx = 0;
-	int zero_value = (sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min) /2;
+	int zero_value = ADC_FS_RAW / 2;	// zero should be half way if DC-Bias is accurate
+	// Note: The actual raw value of the DC bias may need to be tracked.
+
+	// ToDo: Remove below, this is only for testing with the function generator
+	// and a DC-coupled signal. Once the signal is AC coupled it should be centered around
+	// the DC-bias which is half of the ADC full scale
+	// If we have valid zero crossing shift zero point to the centre of the recorded values
+	if (sample_buf_meta[bufnum].measurements_valid) {
+		zero_value = (sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min) / 2;
+	}
 
 	//term_print("zero_value = %d\r\n", zero_value);
 
@@ -325,7 +342,7 @@ void display_show_curves(void) {
 	uint8_t dont_clear = 0;
 	for (int i=0; i<=NUM_I_SENSORS; i++) {
 		make_curve(i);
-		draw_curve(channel_colour[i], dont_clear);
+		draw_curve(channel_colour[i], dont_clear, (sample_buf_meta[i].measurements_valid != 0));
 		dont_clear = 1;
 	}
 }
@@ -339,6 +356,6 @@ void display_show_curve(uint8_t bufnum) {
 	if ( (bufnum >= ADC_NUM_BUFFERS) || (bufnum < 0) ) return;	// buffer range check
 
 	make_curve(bufnum);
-	draw_curve(channel_colour[bufnum], 0);
+	draw_curve(channel_colour[bufnum], 0, (sample_buf_meta[bufnum].measurements_valid != 0));
 
 }

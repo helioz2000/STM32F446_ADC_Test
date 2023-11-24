@@ -10,7 +10,6 @@
 
 int calc_process_dma_buffer(int high, int adc_num);
 void calc_downsample(uint8_t bufnum);
-int calc_channel(uint8_t bufnum);
 void calc_filter_measurements(void);
 int calc_measurements(void);
 int calc_adc_raw_to_mv_int(int16_t adc_raw);
