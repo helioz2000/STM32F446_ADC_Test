@@ -2,8 +2,8 @@
 ../Core/Src/calc.c:133:6:calc_zero_detector	20
 ../Core/Src/calc.c:201:6:calc_downsample	4
 ../Core/Src/calc.c:225:6:calc_filter_measurements	3
-../Core/Src/calc.c:268:5:calc_measurements	12
-../Core/Src/calc.c:404:5:calc_adc_raw_to_mv_int	1
-../Core/Src/calc.c:411:7:calc_adc_raw_to_mv_float	1
-../Core/Src/calc.c:415:7:calc_adc_raw_to_V	1
-../Core/Src/calc.c:419:7:calc_adc_raw_to_A	1
+../Core/Src/calc.c:268:5:calc_measurements	13
+../Core/Src/calc.c:414:5:calc_adc_raw_to_mv_int	1
+../Core/Src/calc.c:421:7:calc_adc_raw_to_mv_float	1
+../Core/Src/calc.c:428:7:calc_adc_raw_to_V	1
+../Core/Src/calc.c:435:7:calc_adc_raw_to_A	1

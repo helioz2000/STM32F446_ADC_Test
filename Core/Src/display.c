@@ -28,7 +28,7 @@ extern uint8_t meter_readings_invalid;
 uint16_t channel_colour[4] = { GREEN, ORANGE, CYAN, BLUE};
 int curve_y[ADC_NUM_DATA/4];		// store the curve before drawing, enables overwrite on next curve
 uint16_t curve_y_zero;		// zero line of curve
-uint16_t curve_y_size = 80;
+uint16_t curve_y_size = 60;
 uint16_t curve_x_zero = 15;
 const uint16_t graph_border = 2;
 uint16_t aligned_curve[ADC_NUM_BUFFERS][800];	// raw samples reduced to one full cycle (around 400 samples)
@@ -169,7 +169,7 @@ void display_meter_mask() {
 	ypos += box_height+1;
 	border_col = BLUE;
 	curve_y_size = display_y-ypos-graph_border*2;
-	curve_y_zero = ypos + curve_y_size / 2;
+	curve_y_zero = ypos + curve_y_size / 2 + graph_border;
 	Displ_Border(0,ypos,display_x,display_y-ypos, graph_border, border_col);
 	Displ_Line(curve_x_zero, curve_y_zero, curve_x_zero+210, curve_y_zero, WHITE);
 }
@@ -253,12 +253,19 @@ int display_align_curves() {
  */
 void draw_curve(uint16_t colour, uint8_t dont_clear, uint8_t centre_zero) {
 
-	if (! dont_clear) {
+	if ((! dont_clear) || (meter_readings_invalid)) {
 		// first clear the curve area
 		Displ_FillArea(2,display_y-curve_y_size-2,display_x-graph_border*2,curve_y_size, BLACK);
 	}
 	// draw curve border
 	//Displ_Border(0,display_y-curve_y_size,display_x-1,curve_y_size, graph_border, BLUE);
+
+	// Don't draw curve for invalid meter reading
+	if (meter_readings_invalid) {
+		//Displ_FillArea(2,display_y-curve_y_size-2,display_x-graph_border*2,curve_y_size, BLACK);
+		Displ_WString(curve_x_zero+Font24.Width, curve_y_zero - Font24.Height / 2 , "Low Voltage", Font24, 1, YELLOW, RED);
+		return;
+	}
 
 	if (centre_zero) {
 		// draw zero line
@@ -269,7 +276,7 @@ void draw_curve(uint16_t colour, uint8_t dont_clear, uint8_t centre_zero) {
 		}
 	} else {	// display for non-AC wave forms
 		for (int x=1; x<curve_len; x++) {
-			Displ_Line(x + curve_x_zero-1, curve_y_zero + (curve_y[x-1]/2), x + curve_x_zero, curve_y_zero + (curve_y[x]/2), colour);
+			Displ_Line(x + curve_x_zero-1, curve_y_zero - (curve_y[x-1]), x + curve_x_zero, curve_y_zero - (curve_y[x]), colour);
 		}
 	}
 }
@@ -286,14 +293,14 @@ void make_curve(uint8_t bufnum) {
 	int scale_factor = 1;
 	int src_idx = 0;
 	int zero_value = ADC_FS_RAW / 2;	// zero should be half way if DC-Bias is accurate
+	int curve_y_min;
 	// Note: The actual raw value of the DC bias may need to be tracked.
 
 	// ToDo: Remove below, this is only for testing with the function generator
 	// and a DC-coupled signal. Once the signal is AC coupled it should be centered around
 	// the DC-bias which is half of the ADC full scale
-	// If we have valid zero crossing shift zero point to the centre of the recorded values
-	if (sample_buf_meta[bufnum].measurements_valid) {
-		zero_value = (sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min) / 2;
+	if (sample_buf_meta[bufnum].zero_cross_pos >= 0) {
+	//	zero_value = (sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min) / 2;
 	}
 
 	//term_print("zero_value = %d\r\n", zero_value);
@@ -307,30 +314,31 @@ void make_curve(uint8_t bufnum) {
 		//value = sample_buf_meta[bufnum].max * scale_factor;
 	}
 
-	curve_len = display_align_curves() / 2;
+	curve_len = display_align_curves() / 2;		// half the data points to fit screen size
+	curve_y_min = 0 - (curve_y_size / 2 -1) ;	// limit y negative points to keep curve within area
+
 	// calculate the new curve as +- values around the centre
 	// set multiplier and divider to ensure the function can handle a wide range of values
 	if (fScale < 1) {
 		// calculate start of first line
 		value = (aligned_curve[bufnum][src_idx] + aligned_curve[bufnum][src_idx+1]) / 2;
-		curve_y[0] = (value  - zero_value) / scale_factor;
+		//curve_y[0] = (value  - zero_value) / scale_factor;
+		curve_y[0] = MAX((value - zero_value) / scale_factor, curve_y_min);
 		for (int pos_x=1; pos_x < curve_len; pos_x++) {
 			src_idx+=2;
 			value = (aligned_curve[bufnum][src_idx] + aligned_curve[bufnum][src_idx+1]) / 2;
 			// calculate reading pixel on display using the scale value
-			curve_y[pos_x] = (value - zero_value) / scale_factor ;
-			//curve_y[pos_x] = y_max - (value / scale_factor) + y_offset;
+			curve_y[pos_x] = MAX((value - zero_value) / scale_factor, curve_y_min);
 		}
 	} else {
 		// calculate start of first line
 		value = (aligned_curve[bufnum][src_idx] + aligned_curve[bufnum][src_idx+1]) / 2;
-		curve_y[0] = (value - zero_value) * scale_factor;
+		curve_y[0] = MAX((value - zero_value) * scale_factor, curve_y_min);
 		for (int pos_x=1; pos_x < curve_len; pos_x++) {
 			src_idx+=2;
 			value = (aligned_curve[bufnum][src_idx] + aligned_curve[bufnum][src_idx+1]) / 2;
 			// calculate reading pixel on display using the scale value
-			curve_y[pos_x] = (value - zero_value) * scale_factor ;
-			//curve_y[pos_x] = y_max - (value * scale_factor) + y_offset;
+			curve_y[pos_x] = MAX((value - zero_value) * scale_factor, curve_y_min);
 		}
 	}
 }
@@ -342,7 +350,7 @@ void display_show_curves(void) {
 	uint8_t dont_clear = 0;
 	for (int i=0; i<=NUM_I_SENSORS; i++) {
 		make_curve(i);
-		draw_curve(channel_colour[i], dont_clear, (sample_buf_meta[i].measurements_valid != 0));
+		draw_curve(channel_colour[i], dont_clear, (sample_buf_meta[i].zero_cross_pos >= 0));
 		dont_clear = 1;
 	}
 }

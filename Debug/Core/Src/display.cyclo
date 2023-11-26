@@ -4,7 +4,7 @@
 ../Core/Src/display.c:87:6:display_update_meter	3
 ../Core/Src/display.c:126:6:display_meter_mask	1
 ../Core/Src/display.c:182:5:display_align_curves	5
-../Core/Src/display.c:254:6:draw_curve	5
-../Core/Src/display.c:284:6:make_curve	6
-../Core/Src/display.c:341:6:display_show_curves	2
-../Core/Src/display.c:355:6:display_show_curve	2
+../Core/Src/display.c:254:6:draw_curve	7
+../Core/Src/display.c:291:6:make_curve	5
+../Core/Src/display.c:349:6:display_show_curves	2
+../Core/Src/display.c:363:6:display_show_curve	2

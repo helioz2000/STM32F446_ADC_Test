@@ -275,21 +275,30 @@ int calc_measurements(void) {
 	int16_t v_reading;			// always positive, we are using the positive half wave
 	int16_t i_reading;			// could be negative if current is leading or lagging
 	double va_instant;			// instant VA value
-	uint16_t v_zero = (sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min) / 2;
-	uint16_t i1_zero = (sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min) / 2;
+	uint16_t v_zero;
+	uint16_t i1_zero;
 	float w=0, va=0;
 
-	// Calculate values using the positive half of the sine wave
-
-	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < 0) { 	// do we have zero crossing?
+	// no zero crossing?
+	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < 0) {
 		meter_readings_invalid = 1;
-		//term_print("%s() - invalid measurements\r\n", __FUNCTION__);
+		//term_print("%s() - missing zero crossings in V\r\n", __FUNCTION__);
 		return -1;
-	} else {
-		meter_readings_invalid = 0;
 	}
 
-	//term_print("%s()\r\n", __FUNCTION__);
+	// low voltage?
+	if ((sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min) < ADC_FS_RAW/4) {
+		meter_readings_invalid = 1;
+		//term_print("%s() - Voltage readings too low V (%d)\r\n", __FUNCTION__, (sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min));
+		return -1;
+	}
+
+	meter_readings_invalid = 0;		// readings are valid
+
+	v_zero = (sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min) / 2;
+	i1_zero = (sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min) / 2;
+
+	// Calculate values using the positive half of the sine wave
 
 	// add up squared measurements
 	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < sample_buf_meta[ADC_CH_V].zero_cross_neg) {
@@ -349,6 +358,7 @@ int calc_measurements(void) {
 	pf1_measured = w1_measured / va1_measured;
 	sample_buf_meta[ADC_CH_V].measurements_valid = 1;
 
+	// add measurements to filter
 	calc_filter_measurements();
 
 	return 0;
@@ -399,7 +409,7 @@ int calc_measurements(void) {
 
 /*
  * Convert ADC raw reading to mv
- * returns mv as int
+ * returns: mv as int
  */
 int calc_adc_raw_to_mv_int(int16_t adc_raw) {
 	return round(calc_adc_raw_to_mv_float(adc_raw));
@@ -412,10 +422,16 @@ float calc_adc_raw_to_mv_float(int16_t adc_raw) {
 	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_MV;
 }
 
+/*
+ * Convert ADC raw reading to V
+ */
 float calc_adc_raw_to_V(int16_t adc_raw) {
 	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_CH_V;
 }
 
+/*
+ * Convert ADC raw reading to A
+ */
 float calc_adc_raw_to_A(int16_t adc_raw) {
 	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_CH_I;
 }

@@ -75,6 +75,7 @@ __IO uint8_t display_activate = 0;	// screen saver off
 uint8_t adc_restart = 0;
 uint8_t tft_display = 0;
 uint16_t new_time_period = 0;
+uint8_t meter_display = 0;
 
 __IO int32_t adc1_dma_l_count = 0;
 __IO int32_t adc1_dma_h_count = 0;
@@ -256,6 +257,11 @@ int main(void)
 	if ( now_ticks >= next_measurement_time ) {
 		next_measurement_time += MEASUREMENT_INTERVAL;
 		calc_measurements();
+#ifdef USE_DISPLAY
+		if ((HAL_GPIO_ReadPin(DISPL_LED_GPIO_Port, DISPL_LED_Pin) == GPIO_PIN_SET) && (meter_display)) {
+			display_update_meter();
+		}
+#endif
 	}
 
 	// process slow tasks
@@ -266,26 +272,27 @@ int main(void)
 		if (display_splash_ticks) {
 			if (now_ticks >= display_splash_ticks) {
 				display_splash_ticks = 0;
-				display_update_ticks = now_ticks;
+
+#ifdef USE_DISPLAY
+				//display_update_ticks = now_ticks;
 				display_meter_mask();
+				meter_display = 1;
 				display_off_ticks = now_ticks + DISPLAY_TIMEOUT;
+#endif
 			}
-		} else {
+		}
+		/*else {
 		// Meter display update
 			if (now_ticks >= display_update_ticks) {
 				display_update_ticks = now_ticks + DISPLAY_UPDATE_TIME;
 				// Don't update unless the display back light is on
 				if (HAL_GPIO_ReadPin(DISPL_LED_GPIO_Port, DISPL_LED_Pin) == GPIO_PIN_SET) {
-					display_update_meter();
+					//display_update_meter();
 				}
 			}
-		}
+		}*/
 
-		// display timeout
-		if (display_off_ticks && (now_ticks >= display_off_ticks)) {
-			Displ_BackLight('0');
-	  		display_off_ticks = 0;
-	  	}
+
 
 		// Handle UART communication
 		if (rx_cmd_ready) {
@@ -306,6 +313,12 @@ int main(void)
 		}
 
 #ifdef USE_DISPLAY
+
+		// display timeout
+		if (display_off_ticks && (now_ticks >= display_off_ticks)) {
+			Displ_BackLight('0');
+	  		display_off_ticks = 0;
+	  	}
 
 		if (tft_display) {
 			if (tft_display == 9) {
