@@ -34,7 +34,7 @@ const uint16_t graph_border = 2;
 uint16_t aligned_curve[ADC_NUM_BUFFERS][800];	// raw samples reduced to one full cycle (around 400 samples)
 uint16_t curve_len = 0;
 char str[32];
-uint8_t lastbuf = 9;
+uint8_t last_screen = 0;
 const Displ_Orientat_e display_orientation = Displ_Orientat_180;
 uint16_t display_x, display_y;
 
@@ -82,10 +82,8 @@ void display_corners() {
 	Displ_WString(display_x-1-10-strlen(str)*Font12.Width, display_y-10-Font12.Height, str, Font12, 1, BLACK, WHITE);
 }
 
-
-
-void display_update_meter() {
-
+// main screen
+void display_screen1() {
 	if (!meter_readings_invalid) {
 		// V
 		snprintf(str,sizeof(str),"%3.0f", metervalue_v);
@@ -100,7 +98,7 @@ void display_update_meter() {
 		snprintf(str,sizeof(str),"%7.1f", metervalue_w1 );
 		Displ_WString(9, 89, str , Font30, 1, YELLOW, BLACK);
 		// PF
-		snprintf(str,sizeof(str),"%4.2f", metervalue_pf1 );
+		snprintf(str,sizeof(str),"%4.2f", fabs(metervalue_pf1) );
 		Displ_WString(9, 130, str , Font30, 1, WHITE, BLACK);
 		// Angle
 		if (metervalue_pf1 < 0) {
@@ -116,8 +114,47 @@ void display_update_meter() {
 		Displ_WString(9, 89, "-----.-" , Font30, 1, YELLOW, BLACK);
 		Displ_WString(9, 130, "-.--" , Font30, 1, WHITE, BLACK);
 		Displ_WString(138, 130, "--.-" , Font30, 1, WHITE, BLACK);
-	}
+		}
 	display_show_curves();
+}
+
+void display_screen2() {
+
+}
+
+void display_update_meter(uint8_t screen) {
+
+	// detect screen number change
+	if (screen != last_screen) {
+		switch(screen) {
+		case 1:
+			display_meter_mask();
+			break;
+		case 2:
+			Displ_CLS(BLACK);
+			Displ_WString(20, 20, "Screen 2" , Font24, 1, WHITE, BLACK);
+			break;
+
+		}
+		last_screen = screen;
+	}
+
+	// update screen contents
+	switch(screen) {
+	case 1:
+		display_screen1();
+		break;
+	case 2:
+		display_screen2();
+		break;
+	}
+}
+
+/*
+ * force mask update on next meter update
+ */
+void display_update_mask(void) {
+	last_screen = 0;
 }
 
 /*

@@ -71,11 +71,12 @@ uint8_t rx_byte;
 uint8_t rx_buff[20];
 uint8_t rx_cmd_ready = 0;
 __IO uint8_t display_activate = 0;	// screen saver off
+__IO uint8_t display_change = 0;		// change active screen
 
 uint8_t adc_restart = 0;
 uint8_t tft_display = 0;
 uint16_t new_time_period = 0;
-uint8_t meter_display = 0;
+uint8_t display_screen = 0;		// 0 = splash, 1 = main
 
 __IO int32_t adc1_dma_l_count = 0;
 __IO int32_t adc1_dma_h_count = 0;
@@ -95,6 +96,7 @@ uint32_t now_ticks, last_ticks;
 uint32_t next_measurement_time;
 uint32_t next_process_time;
 #define PROCESS_INTERVAL 100;	// run slow process every n ms
+#define SCREEN_MAX 2
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
@@ -258,8 +260,8 @@ int main(void)
 		next_measurement_time += MEASUREMENT_INTERVAL;
 		calc_measurements();
 #ifdef USE_DISPLAY
-		if ((HAL_GPIO_ReadPin(DISPL_LED_GPIO_Port, DISPL_LED_Pin) == GPIO_PIN_SET) && (meter_display)) {
-			display_update_meter();
+		if ((HAL_GPIO_ReadPin(DISPL_LED_GPIO_Port, DISPL_LED_Pin) == GPIO_PIN_SET) && (display_screen)) {
+			display_update_meter(display_screen);
 		}
 #endif
 	}
@@ -272,11 +274,9 @@ int main(void)
 		if (display_splash_ticks) {
 			if (now_ticks >= display_splash_ticks) {
 				display_splash_ticks = 0;
-
 #ifdef USE_DISPLAY
-				//display_update_ticks = now_ticks;
-				display_meter_mask();
-				meter_display = 1;
+				//display_meter_mask();
+				display_screen = 1;		// set to main screen
 				display_off_ticks = now_ticks + DISPLAY_TIMEOUT;
 #endif
 			}
@@ -291,8 +291,6 @@ int main(void)
 				}
 			}
 		}*/
-
-
 
 		// Handle UART communication
 		if (rx_cmd_ready) {
@@ -314,6 +312,14 @@ int main(void)
 
 #ifdef USE_DISPLAY
 
+		if (display_change) {
+			display_screen++;
+			if (display_screen > SCREEN_MAX) {
+				display_screen = 1;
+			}
+			display_change = 0;
+		}
+
 		// display timeout
 		if (display_off_ticks && (now_ticks >= display_off_ticks)) {
 			Displ_BackLight('0');
@@ -333,7 +339,7 @@ int main(void)
 				} else {
 					Displ_BackLight('1');
 					display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
-					display_meter_mask();
+					display_update_mask();
 				}
 			}
 		tft_display = 0;
@@ -341,7 +347,7 @@ int main(void)
 
 		if (display_activate) {		// set by touch screen or blue button
 			display_activate = 0;
-			display_meter_mask();
+			display_update_mask();
 			Displ_BackLight('1');
 			display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
 		}
@@ -835,7 +841,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		display_activate = 1;
 		break;
 	case GPIO_PIN_13:		// Blue button on Development board
-		display_activate = 1;
+		display_change = 1;
+		//display_activate = 1;
 		break;
 	}
 }
