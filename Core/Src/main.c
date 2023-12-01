@@ -66,10 +66,17 @@ const char product_msg[] = "PM1";
 const char copyright_msg[] = "(C)2023 Control Technologies P/L";
 char msg_buf[64];
 uint8_t sample_buf_lock = 0xFF;	// lock sample buffer to prevent override
-uint16_t rx_count = 0;
-uint8_t rx_byte;
-uint8_t rx_buff[20];
-uint8_t rx_cmd_ready = 0;
+
+__IO uint16_t cli_rx_count = 0;
+__IO uint8_t cli_rx_byte;
+__IO uint8_t cli_rx_buff[20];
+__IO uint8_t cli_rx_cmd_ready = 0;
+
+__IO uint16_t esp_rx_count = 0;
+__IO uint8_t esp_rx_byte;
+__IO uint8_t esp_rx_buff[256];
+__IO uint8_t esp_rx_reply_ready = 0;
+
 __IO uint8_t display_activate = 0;	// screen saver off
 __IO uint8_t display_change = 0;		// change active screen
 
@@ -97,6 +104,9 @@ uint32_t next_measurement_time;
 uint32_t next_process_time;
 #define PROCESS_INTERVAL 100;	// run slow process every n ms
 #define SCREEN_MAX 2
+
+#define CLI_UART huart2
+#define ESP_UART huart3
 
 //uint8_t adc_read_idx = 0;
 /* USER CODE END PV */
@@ -207,9 +217,14 @@ int main(void)
   display_init(); // THIS FUNCTION MUST PRECEED ANY OTHER DISPLAY FUNCTION CALL.
 #endif
 
-  // Start UART receive via interrupt
-  if (HAL_UART_Receive_IT(&huart2, (uint8_t*)&rx_byte, 1) != HAL_OK) {
+  // Start CLI UART receive via interrupt
+  if (HAL_UART_Receive_IT(&CLI_UART, (uint8_t*)&cli_rx_byte, 1) != HAL_OK) {
     Error_Handler();
+  }
+
+  // Start ESP UART receive via interrupt
+  if (HAL_UART_Receive_IT(&ESP_UART, (uint8_t*)&esp_rx_byte, 1) != HAL_OK) {
+      Error_Handler();
   }
 
   // Start Timer for ADC readings
@@ -227,11 +242,20 @@ int main(void)
 
   // Startup message
   sprintf(msg_buf, "\r\n%s V%d.%02d\r\n%s\r\n",  product_msg ,VERSION_MAJOR, VERSION_MINOR, copyright_msg);
-  if (HAL_UART_Transmit(&huart2, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
-    Error_Handler();
+  if (HAL_UART_Transmit(&CLI_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
+	  Error_Handler();
   }
   // Show active TIM2 configuration (for 25us ADC trigger)
   term_print("TIM2 ARR = %d\r\n",TIM2->ARR);
+
+  // Enable ESP 01
+  HAL_GPIO_WritePin (ESP01_RST_GPIO_Port, ESP01_RST_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin (ESP01_EN_GPIO_Port, ESP01_EN_Pin, GPIO_PIN_SET);
+  // Get ESP version info
+  sprintf(msg_buf, "AT+GMR\r\n");
+  if (HAL_UART_Transmit(&ESP_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
+  	  Error_Handler();
+  }
 
   /* USER CODE END 2 */
 
@@ -292,11 +316,18 @@ int main(void)
 			}
 		}*/
 
-		// Handle UART communication
-		if (rx_cmd_ready) {
-		  CMD_Handler((uint8_t*)rx_buff);
-		  rx_count = 0;
-		  rx_cmd_ready = 0;
+		// Handle CLI UART communication
+		if (cli_rx_cmd_ready) {
+		  CMD_Handler((uint8_t*)cli_rx_buff);
+		  cli_rx_count = 0;
+		  cli_rx_cmd_ready = 0;
+		}
+
+		// Handle ESP UART communication
+		if (esp_rx_reply_ready) {
+			esp_rx_reply_ready = 0;
+			term_print("%s\r\n", esp_rx_buff);
+			esp_rx_count = 0;
 		}
 
 		if (adc_restart) {
@@ -899,22 +930,42 @@ void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
 	}
 }
 
-// UART has received
+// UART has received data
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-	if (rx_count >= sizeof(rx_buff)) {
-		rx_count = 0;		// wrap back to start
-	}
-	if ( HAL_UART_Receive_IT(&huart2, (uint8_t*)&rx_byte, 1) == HAL_UART_ERROR_NONE) {
-		// check for End of input (CR or LF)
-		if ( (rx_byte != 0x0A) && (rx_byte !=  0x0D) ) {
-			rx_buff[rx_count++] = rx_byte;
-		} else { // CR or LF detected
-			if (rx_count != 0) {	// a CR or LF without any pre-ceeding chars gets ignored
-				rx_cmd_ready = 1;
-				rx_buff[rx_count++] = 0;	// end of string
-			}
+	// CLI command
+	if (huart == &CLI_UART) {
+		if (cli_rx_count >= sizeof(cli_rx_buff)) {
+			cli_rx_count = 0;		// wrap back to start
 		}
-	} // else { rx_error_count++; } // this should never happen
+		if ( HAL_UART_Receive_IT(&CLI_UART, (uint8_t*)&cli_rx_byte, 1) == HAL_UART_ERROR_NONE) {
+			// check for End of input (CR or LF)
+			if ( (cli_rx_byte != 0x0A) && (cli_rx_byte !=  0x0D) ) {
+				cli_rx_buff[cli_rx_count++] = cli_rx_byte;
+			} else { // CR or LF detected
+				if (cli_rx_count != 0) {	// a CR or LF without any pre-ceeding chars gets ignored
+					cli_rx_cmd_ready = 1;
+					cli_rx_buff[cli_rx_count++] = 0;	// end of string
+				}
+			}
+		} // else { rx_error_count++; } // this should never happen
+		return;
+	}
+
+	// ESP response
+	if (huart == &ESP_UART) {
+		HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+		if ( HAL_UART_Receive_IT(&ESP_UART, (uint8_t*)&esp_rx_byte, 1) == HAL_UART_ERROR_NONE) {
+			// check for End of input (CR or LF)
+			if ( (esp_rx_byte != 0x0A) && (esp_rx_byte !=  0x0D) ) {
+				esp_rx_buff[esp_rx_count++] = esp_rx_byte;
+			} else { // CR or LF detected
+				if (esp_rx_count != 0) {	// a CR or LF without any pre-ceeding chars gets ignored
+					esp_rx_reply_ready = 1;
+					esp_rx_buff[esp_rx_count++] = 0;	// end of string
+				}
+			}
+		} // else { rx_error_count++; } // this should never happen
+	}
 }
 
 /* USER CODE END 4 */
