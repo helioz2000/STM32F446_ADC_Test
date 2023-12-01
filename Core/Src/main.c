@@ -65,6 +65,7 @@ UART_HandleTypeDef huart3;
 const char product_msg[] = "PM1";
 const char copyright_msg[] = "(C)2023 Control Technologies P/L";
 char msg_buf[64];
+char prt_buf[1024];
 uint8_t sample_buf_lock = 0xFF;	// lock sample buffer to prevent override
 
 __IO uint16_t cli_rx_count = 0;
@@ -74,7 +75,7 @@ __IO uint8_t cli_rx_cmd_ready = 0;
 
 __IO uint16_t esp_rx_count = 0;
 __IO uint8_t esp_rx_byte;
-__IO uint8_t esp_rx_buff[256];
+__IO uint8_t esp_rx_buff[1024];
 __IO uint8_t esp_rx_reply_ready = 0;
 
 __IO uint8_t display_activate = 0;	// screen saver off
@@ -82,6 +83,7 @@ __IO uint8_t display_change = 0;		// change active screen
 
 uint8_t adc_restart = 0;
 uint8_t tft_display = 0;
+uint8_t esp_mode = 0;
 uint16_t new_time_period = 0;
 uint8_t display_screen = 0;		// 0 = splash, 1 = main
 
@@ -249,13 +251,17 @@ int main(void)
   term_print("TIM2 ARR = %d\r\n",TIM2->ARR);
 
   // Enable ESP 01
-  HAL_GPIO_WritePin (ESP01_RST_GPIO_Port, ESP01_RST_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin (ESP01_EN_GPIO_Port, ESP01_EN_Pin, GPIO_PIN_SET);
+  // Perform reset
+  HAL_GPIO_WritePin (ESP01_RST_GPIO_Port, ESP01_RST_Pin, GPIO_PIN_RESET);
+  HAL_Delay(100);
+  HAL_GPIO_WritePin (ESP01_RST_GPIO_Port, ESP01_RST_Pin, GPIO_PIN_SET);
+
   // Get ESP version info
-  sprintf(msg_buf, "AT+GMR\r\n");
+  /*sprintf(msg_buf, "AT+GMR\r\n");
   if (HAL_UART_Transmit(&ESP_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
   	  Error_Handler();
-  }
+  }*/
 
   /* USER CODE END 2 */
 
@@ -318,15 +324,28 @@ int main(void)
 
 		// Handle CLI UART communication
 		if (cli_rx_cmd_ready) {
-		  CMD_Handler((uint8_t*)cli_rx_buff);
-		  cli_rx_count = 0;
-		  cli_rx_cmd_ready = 0;
+			if (esp_mode) {
+				if (cli_rx_buff[0] == '~') { esp_mode = 0; }	// cancel ESP mode
+				else {
+					sprintf(msg_buf, "%s\r\n", cli_rx_buff);	// send command line to ESP01
+					if (HAL_UART_Transmit(&ESP_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
+						Error_Handler();
+					}
+					term_print("%s", msg_buf);
+				}
+			} else {
+				CMD_Handler((uint8_t*)cli_rx_buff);
+			}
+			cli_rx_count = 0;
+			cli_rx_cmd_ready = 0;
 		}
 
 		// Handle ESP UART communication
 		if (esp_rx_reply_ready) {
 			esp_rx_reply_ready = 0;
-			term_print("%s\r\n", esp_rx_buff);
+			snprintf(prt_buf, esp_rx_count, "%s", esp_rx_buff );
+			term_print((uint8_t*)prt_buf);
+			//term_print("\r\n");
 			esp_rx_count = 0;
 		}
 
@@ -734,7 +753,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
+  huart3.Init.BaudRate = 115200; //76800;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
@@ -953,9 +972,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 	// ESP response
 	if (huart == &ESP_UART) {
-		HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+		esp_rx_reply_ready = 1;
 		if ( HAL_UART_Receive_IT(&ESP_UART, (uint8_t*)&esp_rx_byte, 1) == HAL_UART_ERROR_NONE) {
-			// check for End of input (CR or LF)
+			/*if (esp_rx_count >= sizeof(esp_rx_buff)) { //esp_rx_count++; esp_rx_reply_ready = 1;
+			} else
+			{*/
+			esp_rx_buff[esp_rx_count++] = esp_rx_byte;
+
+			/*// check for End of input (CR or LF)
 			if ( (esp_rx_byte != 0x0A) && (esp_rx_byte !=  0x0D) ) {
 				esp_rx_buff[esp_rx_count++] = esp_rx_byte;
 			} else { // CR or LF detected
@@ -963,7 +987,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 					esp_rx_reply_ready = 1;
 					esp_rx_buff[esp_rx_count++] = 0;	// end of string
 				}
-			}
+			}*/
+			//}
 		} // else { rx_error_count++; } // this should never happen
 	}
 }

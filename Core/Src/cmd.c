@@ -22,6 +22,7 @@ extern UART_HandleTypeDef huart2;
 extern uint8_t adc_restart;
 extern uint8_t cmd_display_buffer;
 extern uint8_t tft_display;
+extern uint8_t esp_mode;
 extern uint16_t new_time_period;
 
 uint8_t cmd_len = 0;
@@ -74,6 +75,7 @@ int cmd_help(void) {
 	term_print("D[1..4]: Display ADC channel 1 - 4 on TFT display\r\n");
 	term_print("D: Display all ADC channel on TFT display\r\n");
 #endif
+	term_print("E: Toggle ESP mode\r\n");
 	term_print("L[0,1]: LED L2 OFF / ON\r\n");
 	term_print("M show measurements using all channels");
 	term_print("M[1..4]: Show measurements for ADC channel 1 - 4 buffer in terminal \r\n");
@@ -103,6 +105,11 @@ int cmd_process(uint8_t* cmd_str) {
 		retval = 0;
 		break;
 #endif
+	case 'E':
+	case 'e':
+		if (esp_mode) { esp_mode = 0; }
+		else { esp_mode = 1; }
+		break;
 	case 'L':
 	case 'l':
 		retval = cmd_led(cmd_str[1] - 0x30 + 1);
