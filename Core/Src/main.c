@@ -17,6 +17,7 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -26,6 +27,7 @@
 #include "term.h"
 #include "cmd.h"
 #include "calc.h"
+#include "ee24.h"
 #ifdef USE_DISPLAY
 #include "display.h"
 #endif
@@ -53,6 +55,8 @@ ADC_HandleTypeDef hadc2;
 DMA_HandleTypeDef hdma_adc1;
 DMA_HandleTypeDef hdma_adc2;
 
+I2C_HandleTypeDef hi2c1;
+
 SPI_HandleTypeDef hspi2;
 DMA_HandleTypeDef hdma_spi2_tx;
 
@@ -77,6 +81,10 @@ __IO uint16_t esp_rx_count = 0;
 __IO uint8_t esp_rx_byte;
 __IO uint8_t esp_rx_buff[1024];
 __IO uint8_t esp_rx_reply_ready = 0;
+
+__IO uint8_t eeprom_buf[16];
+extern uint8_t ee24_lock;
+bool ee24_read_done = false;
 
 __IO uint8_t display_activate = 0;	// screen saver off
 __IO uint8_t display_change = 0;		// change active screen
@@ -123,6 +131,7 @@ static void MX_ADC1_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -212,6 +221,7 @@ int main(void)
   MX_ADC2_Init();
   MX_SPI2_Init();
   MX_USART3_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
 #ifdef USE_DISPLAY
@@ -262,6 +272,19 @@ int main(void)
   if (HAL_UART_Transmit(&ESP_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
   	  Error_Handler();
   }*/
+
+
+  // eeprom example code
+
+  if (!ee24_isConnected()) {
+	  term_print("Error: EEPROM chip not found\r\n");
+  } else {
+	  ee24_read_byte(0x00, (uint8_t *) eeprom_buf);
+  }
+  /*
+  eeprom_buf[0] = 0x33;
+  ee24_write_byte(0x01, (uint8_t *) eeprom_buf);
+*/
 
   /* USER CODE END 2 */
 
@@ -344,7 +367,7 @@ int main(void)
 		if (esp_rx_reply_ready) {
 			esp_rx_reply_ready = 0;
 			snprintf(prt_buf, esp_rx_count, "%s", esp_rx_buff );
-			term_print((uint8_t*)prt_buf);
+			term_print(prt_buf);
 			//term_print("\r\n");
 			esp_rx_count = 0;
 		}
@@ -622,6 +645,40 @@ static void MX_ADC2_Init(void)
 }
 
 /**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
   * @brief SPI2 Initialization Function
   * @param None
   * @retval None
@@ -753,7 +810,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200; //76800;
+  huart3.Init.BaudRate = 76800;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
@@ -882,6 +939,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_I2C_MemTxCpltCallback(I2C_HandleTypeDef *hi2c) {
+	ee24_lock = 0;
+//	my_printf("HAL_I2C_MemTxCpltCallback");
+
+}
+void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
+	ee24_lock = 0;
+	ee24_read_done = true;
+//	my_printf("HAL_I2C_MemRxCpltCallback");
+}
 
 // External GPIO Interrupt
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
