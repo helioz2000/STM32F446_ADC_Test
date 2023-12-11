@@ -22,7 +22,7 @@ extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for ch
 extern struct sampleBufMeta sample_buf_meta[];
 extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
 
-#define TERM_BUF_SIZE 128
+#define TERM_BUF_SIZE 1024
 uint8_t term_buf[TERM_BUF_SIZE];
 
 int term_init(void) {

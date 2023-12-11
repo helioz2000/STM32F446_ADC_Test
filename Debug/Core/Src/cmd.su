@@ -4,4 +4,4 @@
 ../Core/Src/cmd.c:61:5:cmd_led	16	static
 ../Core/Src/cmd.c:71:5:cmd_help	8	static
 ../Core/Src/cmd.c:89:5:cmd_process	24	static
-../Core/Src/cmd.c:155:5:CMD_Handler	16	static
+../Core/Src/cmd.c:158:5:CMD_Handler	16	static

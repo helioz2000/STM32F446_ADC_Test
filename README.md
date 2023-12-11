@@ -58,3 +58,5 @@ ESP-01 connected to USART3
 | PC5 | USART3_RX | ESP01 TX |
 | PA15 | ESP01_EN | Enable |
 | PB7 | ESP01_RST | Reset |
+
+Baudrate: on V1.0 of the ESP firmare the baudrate after reset is 76800 until startup has finished and it changes to 115200.

@@ -17,7 +17,6 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -68,16 +67,18 @@ UART_HandleTypeDef huart3;
 /* USER CODE BEGIN PV */
 const char product_msg[] = "PM1";
 const char copyright_msg[] = "(C)2023 Control Technologies P/L";
-char msg_buf[64];
+char msg_buf[256];
 char prt_buf[1024];
 uint8_t sample_buf_lock = 0xFF;	// lock sample buffer to prevent override
 
 __IO uint16_t cli_rx_count = 0;
 __IO uint8_t cli_rx_byte;
-__IO uint8_t cli_rx_buff[20];
+__IO uint8_t cli_rx_buff[128];
 __IO uint8_t cli_rx_cmd_ready = 0;
 
 __IO uint16_t esp_rx_count = 0;
+uint16_t esp_rx_count_last = 0;
+__IO uint16_t esp_rx_error_count = 0;
 __IO uint8_t esp_rx_byte;
 __IO uint8_t esp_rx_buff[1024];
 __IO uint8_t esp_rx_reply_ready = 0;
@@ -277,7 +278,7 @@ int main(void)
   // eeprom example code
 
   if (!ee24_isConnected()) {
-	  term_print("Error: EEPROM chip not found\r\n");
+	  term_print("Error: EEPROM not found\r\n");
   } else {
 	  ee24_read_byte(0x00, (uint8_t *) eeprom_buf);
   }
@@ -348,8 +349,10 @@ int main(void)
 		// Handle CLI UART communication
 		if (cli_rx_cmd_ready) {
 			if (esp_mode) {
-				if (cli_rx_buff[0] == '~') { esp_mode = 0; }	// cancel ESP mode
-				else {
+				if (cli_rx_buff[0] == '~') { // cancel ESP mode
+					esp_mode = 0;
+					term_print("\r\nESP mode deactivated\r\n");
+				} else {
 					sprintf(msg_buf, "%s\r\n", cli_rx_buff);	// send command line to ESP01
 					if (HAL_UART_Transmit(&ESP_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
 						Error_Handler();
@@ -364,13 +367,32 @@ int main(void)
 		}
 
 		// Handle ESP UART communication
+		if (esp_rx_count > 0) {
+			if (esp_rx_count_last != esp_rx_count) { // has the rx count changed since last iteration?
+				esp_rx_count_last = esp_rx_count;		// update last count
+
+			} else {	// count hasn't changed since last iteration receive must be complete
+				sprintf(prt_buf, "\r\nrx:%d error:%d\r\n", esp_rx_count, esp_rx_error_count);
+				term_print(prt_buf);
+				snprintf(prt_buf, esp_rx_count, "%s", esp_rx_buff );
+				term_print(prt_buf);
+				esp_rx_count = 0;
+				esp_rx_count_last = esp_rx_count;
+				esp_rx_reply_ready = 0;
+			}
+
+		}
+		/*
 		if (esp_rx_reply_ready) {
 			esp_rx_reply_ready = 0;
+			sprintf(prt_buf, "\r\nrx:%d error:%d\r\n", esp_rx_count, esp_rx_error_count);
+			term_print(prt_buf);
 			snprintf(prt_buf, esp_rx_count, "%s", esp_rx_buff );
 			term_print(prt_buf);
 			//term_print("\r\n");
 			esp_rx_count = 0;
 		}
+		*/
 
 		if (adc_restart) {
 		  adc_restart = 0;
@@ -810,7 +832,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 76800;
+  huart3.Init.BaudRate = 115200;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
@@ -1057,7 +1079,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 				}
 			}*/
 			//}
-		} // else { rx_error_count++; } // this should never happen
+		} else {
+			esp_rx_error_count++;
+		} // this should never happen
 	}
 }
 

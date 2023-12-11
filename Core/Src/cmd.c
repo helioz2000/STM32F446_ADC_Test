@@ -108,7 +108,10 @@ int cmd_process(uint8_t* cmd_str) {
 	case 'E':
 	case 'e':
 		if (esp_mode) { esp_mode = 0; }
-		else { esp_mode = 1; }
+		else {
+			esp_mode = 1;
+			term_print("\r\nESP mode active, enter ~ to exit\r\n");
+		}
 		break;
 	case 'L':
 	case 'l':
