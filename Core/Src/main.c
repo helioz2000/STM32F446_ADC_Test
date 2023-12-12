@@ -81,7 +81,11 @@ uint16_t esp_rx_count_last = 0;
 __IO uint16_t esp_rx_error_count = 0;
 __IO uint8_t esp_rx_byte;
 __IO uint8_t esp_rx_buff[1024];
-__IO uint8_t esp_rx_reply_ready = 0;
+bool esp_first_rx = false;
+bool esp_init_sent = false;
+bool esp_wifi_connected = false;
+bool esp_wifi_got_ip = false;
+uint8_t esp_connection_count = 0;
 
 __IO uint8_t eeprom_buf[16];
 extern uint8_t ee24_lock;
@@ -183,6 +187,24 @@ void adjust_TIM2_period(uint16_t newPeriod, uint8_t store) {
 			term_print("EEPROM write %u\r\n", newPeriod);
 		}
 	}*/
+}
+
+void evaluate_esp_response(uint8_t *response, int len) {
+	//term_print("%s", response);
+	// process each line in response
+	char *token;
+	uint8_t t_count = 0;
+	const char s[2] = {0x0A, 0x0D};
+
+	   /* get the first token */
+	   token = strtok((char*)response, s);
+
+	   /* walk through other tokens */
+	   while( token != NULL ) {
+		   term_print( "%d: %s\r\n", t_count++, token );
+		   token = strtok(NULL, s);
+	   }
+	//strlen(repsonse);
 }
 
 /* USER CODE END 0 */
@@ -372,15 +394,23 @@ int main(void)
 				esp_rx_count_last = esp_rx_count;		// update last count
 
 			} else {	// count hasn't changed since last iteration receive must be complete
-				sprintf(prt_buf, "\r\nrx:%d error:%d\r\n", esp_rx_count, esp_rx_error_count);
-				term_print(prt_buf);
-				snprintf(prt_buf, esp_rx_count, "%s", esp_rx_buff );
-				term_print(prt_buf);
+				if (esp_rx_error_count) {
+					term_print("\r\nrx:%d error:%d\r\n", esp_rx_count, esp_rx_error_count);
+				}
+				if (!esp_init_sent) {
+					sprintf(msg_buf, "ATE0\r\n");	// disable echo
+					HAL_UART_Transmit(&ESP_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000);
+					esp_init_sent = true;
+				}
+				if (!esp_first_rx) { esp_first_rx = true;
+				} else {
+					esp_rx_buff[esp_rx_count] = 0;		// set end of string
+					//term_print("%s", esp_rx_buff);
+					evaluate_esp_response((uint8_t*) esp_rx_buff, esp_rx_count);
+				}
 				esp_rx_count = 0;
 				esp_rx_count_last = esp_rx_count;
-				esp_rx_reply_ready = 0;
 			}
-
 		}
 		/*
 		if (esp_rx_reply_ready) {
@@ -1062,7 +1092,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 	// ESP response
 	if (huart == &ESP_UART) {
-		esp_rx_reply_ready = 1;
+		//esp_rx_reply_ready = 1;
 		if ( HAL_UART_Receive_IT(&ESP_UART, (uint8_t*)&esp_rx_byte, 1) == HAL_UART_ERROR_NONE) {
 			/*if (esp_rx_count >= sizeof(esp_rx_buff)) { //esp_rx_count++; esp_rx_reply_ready = 1;
 			} else
