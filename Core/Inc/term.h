@@ -10,6 +10,7 @@
 
 int term_init(void);
 HAL_StatusTypeDef term_print(const char* format, ...);
+void term_print_hex(uint8_t* buf, unsigned len, uint8_t per_line);
 void term_show_buffer(uint8_t bufnum);
 void term_csv_buffer(uint8_t buf_num);
 void term_show_measurements(void);

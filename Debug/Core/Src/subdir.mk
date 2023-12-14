@@ -22,6 +22,7 @@ C_SRCS += \
 ../Core/Src/sysmem.c \
 ../Core/Src/system_stm32f4xx.c \
 ../Core/Src/term.c \
+../Core/Src/wifi.c \
 ../Core/Src/z_displ_ILI9XXX.c \
 ../Core/Src/z_displ_ILI9XXX_test.c 
 
@@ -43,6 +44,7 @@ OBJS += \
 ./Core/Src/sysmem.o \
 ./Core/Src/system_stm32f4xx.o \
 ./Core/Src/term.o \
+./Core/Src/wifi.o \
 ./Core/Src/z_displ_ILI9XXX.o \
 ./Core/Src/z_displ_ILI9XXX_test.o 
 
@@ -64,6 +66,7 @@ C_DEPS += \
 ./Core/Src/sysmem.d \
 ./Core/Src/system_stm32f4xx.d \
 ./Core/Src/term.d \
+./Core/Src/wifi.d \
 ./Core/Src/z_displ_ILI9XXX.d \
 ./Core/Src/z_displ_ILI9XXX_test.d 
 
@@ -75,7 +78,7 @@ Core/Src/%.o Core/Src/%.su Core/Src/%.cyclo: ../Core/Src/%.c Core/Src/subdir.mk
 clean: clean-Core-2f-Src
 
 clean-Core-2f-Src:
-	-$(RM) ./Core/Src/calc.cyclo ./Core/Src/calc.d ./Core/Src/calc.o ./Core/Src/calc.su ./Core/Src/cmd.cyclo ./Core/Src/cmd.d ./Core/Src/cmd.o ./Core/Src/cmd.su ./Core/Src/display.cyclo ./Core/Src/display.d ./Core/Src/display.o ./Core/Src/display.su ./Core/Src/ee24.cyclo ./Core/Src/ee24.d ./Core/Src/ee24.o ./Core/Src/ee24.su ./Core/Src/font12.cyclo ./Core/Src/font12.d ./Core/Src/font12.o ./Core/Src/font12.su ./Core/Src/font16.cyclo ./Core/Src/font16.d ./Core/Src/font16.o ./Core/Src/font16.su ./Core/Src/font20.cyclo ./Core/Src/font20.d ./Core/Src/font20.o ./Core/Src/font20.su ./Core/Src/font24.cyclo ./Core/Src/font24.d ./Core/Src/font24.o ./Core/Src/font24.su ./Core/Src/font30.cyclo ./Core/Src/font30.d ./Core/Src/font30.o ./Core/Src/font30.su ./Core/Src/font8.cyclo ./Core/Src/font8.d ./Core/Src/font8.o ./Core/Src/font8.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32f4xx_hal_msp.cyclo ./Core/Src/stm32f4xx_hal_msp.d ./Core/Src/stm32f4xx_hal_msp.o ./Core/Src/stm32f4xx_hal_msp.su ./Core/Src/stm32f4xx_it.cyclo ./Core/Src/stm32f4xx_it.d ./Core/Src/stm32f4xx_it.o ./Core/Src/stm32f4xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f4xx.cyclo ./Core/Src/system_stm32f4xx.d ./Core/Src/system_stm32f4xx.o ./Core/Src/system_stm32f4xx.su ./Core/Src/term.cyclo ./Core/Src/term.d ./Core/Src/term.o ./Core/Src/term.su ./Core/Src/z_displ_ILI9XXX.cyclo ./Core/Src/z_displ_ILI9XXX.d ./Core/Src/z_displ_ILI9XXX.o ./Core/Src/z_displ_ILI9XXX.su ./Core/Src/z_displ_ILI9XXX_test.cyclo ./Core/Src/z_displ_ILI9XXX_test.d ./Core/Src/z_displ_ILI9XXX_test.o ./Core/Src/z_displ_ILI9XXX_test.su
+	-$(RM) ./Core/Src/calc.cyclo ./Core/Src/calc.d ./Core/Src/calc.o ./Core/Src/calc.su ./Core/Src/cmd.cyclo ./Core/Src/cmd.d ./Core/Src/cmd.o ./Core/Src/cmd.su ./Core/Src/display.cyclo ./Core/Src/display.d ./Core/Src/display.o ./Core/Src/display.su ./Core/Src/ee24.cyclo ./Core/Src/ee24.d ./Core/Src/ee24.o ./Core/Src/ee24.su ./Core/Src/font12.cyclo ./Core/Src/font12.d ./Core/Src/font12.o ./Core/Src/font12.su ./Core/Src/font16.cyclo ./Core/Src/font16.d ./Core/Src/font16.o ./Core/Src/font16.su ./Core/Src/font20.cyclo ./Core/Src/font20.d ./Core/Src/font20.o ./Core/Src/font20.su ./Core/Src/font24.cyclo ./Core/Src/font24.d ./Core/Src/font24.o ./Core/Src/font24.su ./Core/Src/font30.cyclo ./Core/Src/font30.d ./Core/Src/font30.o ./Core/Src/font30.su ./Core/Src/font8.cyclo ./Core/Src/font8.d ./Core/Src/font8.o ./Core/Src/font8.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32f4xx_hal_msp.cyclo ./Core/Src/stm32f4xx_hal_msp.d ./Core/Src/stm32f4xx_hal_msp.o ./Core/Src/stm32f4xx_hal_msp.su ./Core/Src/stm32f4xx_it.cyclo ./Core/Src/stm32f4xx_it.d ./Core/Src/stm32f4xx_it.o ./Core/Src/stm32f4xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f4xx.cyclo ./Core/Src/system_stm32f4xx.d ./Core/Src/system_stm32f4xx.o ./Core/Src/system_stm32f4xx.su ./Core/Src/term.cyclo ./Core/Src/term.d ./Core/Src/term.o ./Core/Src/term.su ./Core/Src/wifi.cyclo ./Core/Src/wifi.d ./Core/Src/wifi.o ./Core/Src/wifi.su ./Core/Src/z_displ_ILI9XXX.cyclo ./Core/Src/z_displ_ILI9XXX.d ./Core/Src/z_displ_ILI9XXX.o ./Core/Src/z_displ_ILI9XXX.su ./Core/Src/z_displ_ILI9XXX_test.cyclo ./Core/Src/z_displ_ILI9XXX_test.d ./Core/Src/z_displ_ILI9XXX_test.o ./Core/Src/z_displ_ILI9XXX_test.su
 
 .PHONY: clean-Core-2f-Src
 

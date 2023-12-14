@@ -34,6 +34,10 @@ struct sampleBufMeta {
 
 #define MEASUREMENT_INTERVAL 200	// [ms] calculate measurements from curves and add them to the filter
 
+// WiFi module (ESP-01) definitions
+#define USE_WIFI		// comment out to disable WiFi code
+
+
 // line below controls TFT display usage
 #define USE_DISPLAY
 #define DISPLAY_TIMEOUT 300000	// [ms] display timeout (LCD screen saver)

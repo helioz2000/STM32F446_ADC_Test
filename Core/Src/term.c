@@ -38,6 +38,24 @@ HAL_StatusTypeDef term_print(const char* format, ...) {
 }
 
 /*
+ * Print buffer content in hexadecimal format
+ * parameter buf: buffer
+ * parameter len: buffer length
+ * parameter per_line: number of values to print per line (0=default)
+ */
+void term_print_hex(uint8_t* buf, unsigned len, uint8_t per_line) {
+	uint8_t count = 0;
+	if (per_line < 4) { per_line = 16; }
+	for (int i = 0; i < len; i++) {
+		term_print("%02X ", buf[i]);
+		if (++count > per_line) {
+			term_print("\r\n");
+			count = 0;
+		}
+	}
+}
+
+/*
  * Show the adc_raw_buf contents in terminal
  */
 void term_show_buffer(uint8_t bufnum) {

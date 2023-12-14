@@ -27,6 +27,7 @@
 #include "cmd.h"
 #include "calc.h"
 #include "ee24.h"
+#include "wifi.h"
 #ifdef USE_DISPLAY
 #include "display.h"
 #endif
@@ -71,22 +72,21 @@ char msg_buf[256];
 char prt_buf[1024];
 uint8_t sample_buf_lock = 0xFF;	// lock sample buffer to prevent override
 
+// Command Line Interface
 __IO uint16_t cli_rx_count = 0;
 __IO uint8_t cli_rx_byte;
 __IO uint8_t cli_rx_buff[128];
 __IO uint8_t cli_rx_cmd_ready = 0;
 
-__IO uint16_t esp_rx_count = 0;
-uint16_t esp_rx_count_last = 0;
-__IO uint16_t esp_rx_error_count = 0;
+// WiFi (ESP-01) interface
+extern uint16_t esp_rx_count;
+extern uint16_t esp_rx_error_count;
+extern bool esp_rx_buffer_overflow;
+extern uint8_t esp_rx_buf[];
 __IO uint8_t esp_rx_byte;
-__IO uint8_t esp_rx_buff[1024];
-bool esp_first_rx = false;
-bool esp_init_sent = false;
-bool esp_wifi_connected = false;
-bool esp_wifi_got_ip = false;
-uint8_t esp_connection_count = 0;
+uint16_t esp_rx_count_last = 0;
 
+// EEPROM
 __IO uint8_t eeprom_buf[16];
 extern uint8_t ee24_lock;
 bool ee24_read_done = false;
@@ -189,24 +189,6 @@ void adjust_TIM2_period(uint16_t newPeriod, uint8_t store) {
 	}*/
 }
 
-void evaluate_esp_response(uint8_t *response, int len) {
-	//term_print("%s", response);
-	// process each line in response
-	char *token;
-	uint8_t t_count = 0;
-	const char s[2] = {0x0A, 0x0D};
-
-	   /* get the first token */
-	   token = strtok((char*)response, s);
-
-	   /* walk through other tokens */
-	   while( token != NULL ) {
-		   term_print( "%d: %s\r\n", t_count++, token );
-		   token = strtok(NULL, s);
-	   }
-	//strlen(repsonse);
-}
-
 /* USER CODE END 0 */
 
 /**
@@ -256,11 +238,12 @@ int main(void)
   if (HAL_UART_Receive_IT(&CLI_UART, (uint8_t*)&cli_rx_byte, 1) != HAL_OK) {
     Error_Handler();
   }
-
+#ifdef USE_WIFI
   // Start ESP UART receive via interrupt
   if (HAL_UART_Receive_IT(&ESP_UART, (uint8_t*)&esp_rx_byte, 1) != HAL_OK) {
       Error_Handler();
   }
+#endif
 
   // Start Timer for ADC readings
   if (HAL_TIM_Base_Start_IT(&htim2) != HAL_OK) {
@@ -283,6 +266,7 @@ int main(void)
   // Show active TIM2 configuration (for 25us ADC trigger)
   term_print("TIM2 ARR = %d\r\n",TIM2->ARR);
 
+#ifdef USE_WIFI
   // Enable ESP 01
   HAL_GPIO_WritePin (ESP01_EN_GPIO_Port, ESP01_EN_Pin, GPIO_PIN_SET);
   // Perform reset
@@ -295,7 +279,7 @@ int main(void)
   if (HAL_UART_Transmit(&ESP_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
   	  Error_Handler();
   }*/
-
+#endif
 
   // eeprom example code
 
@@ -388,41 +372,17 @@ int main(void)
 			cli_rx_cmd_ready = 0;
 		}
 
+#ifdef USE_WIFI
 		// Handle ESP UART communication
-		if (esp_rx_count > 0) {
-			if (esp_rx_count_last != esp_rx_count) { // has the rx count changed since last iteration?
-				esp_rx_count_last = esp_rx_count;		// update last count
-
-			} else {	// count hasn't changed since last iteration receive must be complete
-				if (esp_rx_error_count) {
-					term_print("\r\nrx:%d error:%d\r\n", esp_rx_count, esp_rx_error_count);
-				}
-				if (!esp_init_sent) {
-					sprintf(msg_buf, "ATE0\r\n");	// disable echo
-					HAL_UART_Transmit(&ESP_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000);
-					esp_init_sent = true;
-				}
-				if (!esp_first_rx) { esp_first_rx = true;
-				} else {
-					esp_rx_buff[esp_rx_count] = 0;		// set end of string
-					//term_print("%s", esp_rx_buff);
-					evaluate_esp_response((uint8_t*) esp_rx_buff, esp_rx_count);
-				}
-				esp_rx_count = 0;
+		if (esp_rx_count > 0) {		// do we have any RX data from the ESP?
+			if (esp_rx_count_last != esp_rx_count) { 	// has the RX count changed since last iteration?
+				esp_rx_count_last = esp_rx_count;		// yes -> update last count, RX not finished yet
+			} else {	// count hasn't changed since last iteration, we assume RX is completed
+				wifi_handle_esp_rx_data();
 				esp_rx_count_last = esp_rx_count;
 			}
 		}
-		/*
-		if (esp_rx_reply_ready) {
-			esp_rx_reply_ready = 0;
-			sprintf(prt_buf, "\r\nrx:%d error:%d\r\n", esp_rx_count, esp_rx_error_count);
-			term_print(prt_buf);
-			snprintf(prt_buf, esp_rx_count, "%s", esp_rx_buff );
-			term_print(prt_buf);
-			//term_print("\r\n");
-			esp_rx_count = 0;
-		}
-		*/
+#endif		// USE_WIFI
 
 		if (adc_restart) {
 		  adc_restart = 0;
@@ -1089,30 +1049,20 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		} // else { rx_error_count++; } // this should never happen
 		return;
 	}
-
-	// ESP response
+#ifdef USE_WIFI
+	// receive data from ESP
 	if (huart == &ESP_UART) {
-		//esp_rx_reply_ready = 1;
 		if ( HAL_UART_Receive_IT(&ESP_UART, (uint8_t*)&esp_rx_byte, 1) == HAL_UART_ERROR_NONE) {
-			/*if (esp_rx_count >= sizeof(esp_rx_buff)) { //esp_rx_count++; esp_rx_reply_ready = 1;
-			} else
-			{*/
-			esp_rx_buff[esp_rx_count++] = esp_rx_byte;
-
-			/*// check for End of input (CR or LF)
-			if ( (esp_rx_byte != 0x0A) && (esp_rx_byte !=  0x0D) ) {
-				esp_rx_buff[esp_rx_count++] = esp_rx_byte;
-			} else { // CR or LF detected
-				if (esp_rx_count != 0) {	// a CR or LF without any pre-ceeding chars gets ignored
-					esp_rx_reply_ready = 1;
-					esp_rx_buff[esp_rx_count++] = 0;	// end of string
-				}
-			}*/
-			//}
-		} else {
+			if (esp_rx_count >= ESP_RX_BUF_SIZE) {		// prevent RX buffer overrun
+				esp_rx_count = 0;
+				esp_rx_buffer_overflow = true;				// set error flag
+			}
+			esp_rx_buf[esp_rx_count++] = esp_rx_byte;		// add received byte to RX buffer
+		} else {	// this should never happen
 			esp_rx_error_count++;
-		} // this should never happen
+		}
 	}
+#endif
 }
 
 /* USER CODE END 4 */
