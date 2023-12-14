@@ -378,7 +378,13 @@ int main(void)
 			if (esp_rx_count_last != esp_rx_count) { 	// has the RX count changed since last iteration?
 				esp_rx_count_last = esp_rx_count;		// yes -> update last count, RX not finished yet
 			} else {	// count hasn't changed since last iteration, we assume RX is completed
-				wifi_handle_esp_rx_data();
+				if (!esp_mode) {
+					wifi_handle_esp_rx_data();
+				} else {		// ESP in terminal mode
+					esp_rx_buf[esp_rx_count] = 0;	// Set EOS
+					term_print("%s", esp_rx_buf);
+				}
+				esp_rx_count = 0;
 				esp_rx_count_last = esp_rx_count;
 			}
 		}
