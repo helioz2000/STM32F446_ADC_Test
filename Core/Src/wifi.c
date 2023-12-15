@@ -20,6 +20,7 @@ __IO uint16_t esp_rx_error_count = 0;
 __IO uint8_t esp_rx_buf[ESP_RX_BUF_SIZE];
 __IO bool esp_rx_buffer_overflow = false;
 char line_buf[ESP_RX_BUF_SIZE];
+const char* empty_ip = "---.---.---.---";
 
 bool esp_first_rx = false;
 bool esp_wifi_connected = false;
@@ -27,6 +28,7 @@ bool esp_wifi_got_ip = false;
 bool esp_con_is_up = false;
 uint8_t esp_cmd_step = 0;
 bool client_connection[10] = { false, false, false, false, false, false, false, false, false, false };
+char* ip_addr_str = "000.000.000.000";
 
 extern UART_HandleTypeDef huart3;
 
@@ -99,6 +101,11 @@ int wifi_send_esp_data(uint8_t* buf, unsigned len) {
 void cmd_sequence() {
 	//term_print( "%s() - step: %d\r\n", __FUNCTION__, esp_cmd_step );
 	switch (esp_cmd_step) {
+	case 6:
+		sprintf((char*)esp_tx_buf, "AT+CIFSR\r\n");		// get IP address
+		HAL_UART_Transmit(&ESP_UART, (uint8_t*)esp_tx_buf, strlen((char*)esp_tx_buf), 1000);
+		esp_cmd_step --;
+		break;
 	case 4:
 		sprintf((char*)esp_tx_buf, "AT+CIPMUX=1\r\n");	// start server
 		HAL_UART_Transmit(&ESP_UART, (uint8_t*)esp_tx_buf, strlen((char*)esp_tx_buf), 1000);
@@ -133,9 +140,10 @@ void at_echo(bool on_off) {
 void on_link(bool up_down) {
 	if (up_down == true) {
 		term_print("%s - LINK UP\r\n", __FUNCTION__);
-		esp_cmd_step = 4;
+		esp_cmd_step = 6;	// kick off commands
 		cmd_sequence();
 	} else {
+		strcpy(ip_addr_str, empty_ip);
 		term_print("%s - LINK DOWN\r\n", __FUNCTION__);
 	}
 }
@@ -306,6 +314,37 @@ int process_esp_response_status(char* token, uint8_t token_num) {
 }
 
 /*
+ * @brief   Process line starting with '+'
+ * @para    line     the response line
+ * @retval  -1 on failure, 0 or the number of lines to be ignored
+ */
+int process_esp_repsonse_plus(char* line) {
+	int retval = -1;
+	char* token;
+	char* token_ptr;
+	int len;
+
+	//term_print( "%s() - <%s>\r\n", __FUNCTION__, line);
+
+	token = strtok_r(line, ",", &token_ptr);
+	if (strncmp(token, "+CIFSR", 6)==0) {
+		if (line[10] == 'I') { 			// +CIFSR:STAIP,"192.168.0.xxx"
+			len = strlen(token_ptr);
+			token_ptr[len-1] = 0;	// remove " at end of string
+			token_ptr[0] = 0;		// remove " at start of string
+			token_ptr++;			// advance ptr to start of IP string
+			strcpy(ip_addr_str, token_ptr);
+			term_print( "%s() - IP=<%s>(%s)\r\n", __FUNCTION__, ip_addr_str, token_ptr);
+			retval = 0;
+		} else if (line[10] == 'M') {	// +CIFSR:STAMAC,"bc:dd:c2:a1:25:79"
+			term_print( "%s() - %s %s\r\n", __FUNCTION__, token, token_ptr);
+			retval = 0;
+		}
+	}
+	return retval;
+}
+
+/*
  * @brief   Process ESP response line"
  * @para    line     the response line
  * @para    line_num the line number
@@ -320,6 +359,10 @@ int process_esp_response_line(char* line, uint8_t line_num) {
 	int ignore_tokens = 0;
 
 	//term_print( "%s() - %d:<%s>\r\n", __FUNCTION__, line_num, line);
+
+	if (line[0] == '+') {	// IP related info
+		return process_esp_repsonse_plus(line);
+	}
 
 	// evaluate all tokens
 	token = strtok_r(line, s, &token_ptr);
