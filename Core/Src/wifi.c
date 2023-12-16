@@ -28,7 +28,8 @@ bool esp_wifi_got_ip = false;
 bool esp_con_is_up = false;
 uint8_t esp_cmd_step = 0;
 bool client_connection[10] = { false, false, false, false, false, false, false, false, false, false };
-char* ip_addr_str = "000.000.000.000";
+char ip_addr_str[16] = "000.000.000.000";
+char mac_addr_str[18] = "00:00:00:00:00:00";
 
 extern UART_HandleTypeDef huart3;
 
@@ -334,10 +335,15 @@ int process_esp_repsonse_plus(char* line) {
 			token_ptr[0] = 0;		// remove " at start of string
 			token_ptr++;			// advance ptr to start of IP string
 			strcpy(ip_addr_str, token_ptr);
-			term_print( "%s() - IP=<%s>(%s)\r\n", __FUNCTION__, ip_addr_str, token_ptr);
+			term_print( "%s() - IP=<%s>\r\n", __FUNCTION__, ip_addr_str);
 			retval = 0;
 		} else if (line[10] == 'M') {	// +CIFSR:STAMAC,"bc:dd:c2:a1:25:79"
-			term_print( "%s() - %s %s\r\n", __FUNCTION__, token, token_ptr);
+			len = strlen(token_ptr);
+			token_ptr[len-1] = 0;	// remove " at end of string
+			token_ptr[0] = 0;		// remove " at start of string
+			token_ptr++;			// advance ptr to start of MAC string
+			strcpy(mac_addr_str, token_ptr);
+			term_print( "%s() - MAC=<%s>\r\n", __FUNCTION__, mac_addr_str);
 			retval = 0;
 		}
 	}
