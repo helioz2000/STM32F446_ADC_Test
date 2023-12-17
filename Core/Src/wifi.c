@@ -335,7 +335,7 @@ int process_esp_repsonse_plus(char* line) {
 			token_ptr[0] = 0;		// remove " at start of string
 			token_ptr++;			// advance ptr to start of IP string
 			strcpy(ip_addr_str, token_ptr);
-			term_print( "%s() - IP=<%s>\r\n", __FUNCTION__, ip_addr_str);
+			//term_print( "%s() - IP=<%s>\r\n", __FUNCTION__, ip_addr_str);
 			retval = 0;
 		} else if (line[10] == 'M') {	// +CIFSR:STAMAC,"bc:dd:c2:a1:25:79"
 			len = strlen(token_ptr);
@@ -343,7 +343,7 @@ int process_esp_repsonse_plus(char* line) {
 			token_ptr[0] = 0;		// remove " at start of string
 			token_ptr++;			// advance ptr to start of MAC string
 			strcpy(mac_addr_str, token_ptr);
-			term_print( "%s() - MAC=<%s>\r\n", __FUNCTION__, mac_addr_str);
+			//term_print( "%s() - MAC=<%s>\r\n", __FUNCTION__, mac_addr_str);
 			retval = 0;
 		}
 	}
