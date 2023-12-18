@@ -36,6 +36,9 @@ extern UART_HandleTypeDef huart3;
 #define ESP_UART huart3
 #define MODBUS_SERVER_PORT 80
 
+// enable below for debug output
+//#define WIFI_DEBUG
+
 /*
  * Private function declarations
  */
@@ -100,7 +103,9 @@ int wifi_send_esp_data(uint8_t* buf, unsigned len) {
  *         OK response = step--
  */
 void cmd_sequence() {
-	//term_print( "%s() - step: %d\r\n", __FUNCTION__, esp_cmd_step );
+#ifdef WIFI_DEBUG
+	term_print( "%s() - step: %d\r\n", __FUNCTION__, esp_cmd_step );
+#endif
 	switch (esp_cmd_step) {
 	case 6:
 		sprintf((char*)esp_tx_buf, "AT+CIFSR\r\n");		// get IP address
@@ -140,12 +145,18 @@ void at_echo(bool on_off) {
  */
 void on_link(bool up_down) {
 	if (up_down == true) {
-		term_print("%s - LINK UP\r\n", __FUNCTION__);
+#ifdef WIFI_DEBUG
+		term_print("%s() - LINK UP\r\n", __FUNCTION__);
+#endif
+		HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 		esp_cmd_step = 6;	// kick off commands
 		cmd_sequence();
 	} else {
+		HAL_GPIO_WritePin (LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 		strcpy(ip_addr_str, empty_ip);
-		term_print("%s - LINK DOWN\r\n", __FUNCTION__);
+#ifdef WIFI_DEBUG
+		term_print("%s() - LINK DOWN\r\n", __FUNCTION__);
+#endif
 	}
 }
 
@@ -247,7 +258,9 @@ int process_esp_response_ipd(char* response, int len) {
  * @retval  -1 on failure, 0 or the number of tokens to be ignored
  */
 int process_esp_response_wifi(char* token, uint8_t token_num) {
-	//term_print( "%s() - token%d = <%s>\r\n", __FUNCTION__, token_num, token );
+#ifdef WIFI_DEBUG
+	term_print( "%s() - token%d = <%s>\r\n", __FUNCTION__, token_num, token );
+#endif
 	uint8_t con_status = 0;
 	int retval = -1;
 	if (strncmp(token, "CONNECTED", 9)==0) {	// "WIFI CONNECTED"
@@ -324,8 +337,9 @@ int process_esp_repsonse_plus(char* line) {
 	char* token;
 	char* token_ptr;
 	int len;
-
-	//term_print( "%s() - <%s>\r\n", __FUNCTION__, line);
+#ifdef WIFI_DEBUG
+	term_print( "%s() - <%s>\r\n", __FUNCTION__, line);
+#endif
 
 	token = strtok_r(line, ",", &token_ptr);
 	if (strncmp(token, "+CIFSR", 6)==0) {
@@ -335,7 +349,9 @@ int process_esp_repsonse_plus(char* line) {
 			token_ptr[0] = 0;		// remove " at start of string
 			token_ptr++;			// advance ptr to start of IP string
 			strcpy(ip_addr_str, token_ptr);
-			//term_print( "%s() - IP=<%s>\r\n", __FUNCTION__, ip_addr_str);
+#ifdef WIFI_DEBUG
+			term_print( "%s() - IP=<%s>\r\n", __FUNCTION__, ip_addr_str);
+#endif
 			retval = 0;
 		} else if (line[10] == 'M') {	// +CIFSR:STAMAC,"bc:dd:c2:a1:25:79"
 			len = strlen(token_ptr);
@@ -343,7 +359,9 @@ int process_esp_repsonse_plus(char* line) {
 			token_ptr[0] = 0;		// remove " at start of string
 			token_ptr++;			// advance ptr to start of MAC string
 			strcpy(mac_addr_str, token_ptr);
-			//term_print( "%s() - MAC=<%s>\r\n", __FUNCTION__, mac_addr_str);
+#ifdef WIFI_DEBUG
+			term_print( "%s() - MAC=<%s>\r\n", __FUNCTION__, mac_addr_str);
+#endif
 			retval = 0;
 		}
 	}
@@ -364,8 +382,9 @@ int process_esp_response_line(char* line, uint8_t line_num) {
 	const char s[1] = {' '};	// token separator
 	int ignore_tokens = 0;
 
-	//term_print( "%s() - %d:<%s>\r\n", __FUNCTION__, line_num, line);
-
+#ifdef WIFI_DEBUG
+	term_print( "%s() - %d:<%s>\r\n", __FUNCTION__, line_num, line);
+#endif
 	if (line[0] == '+') {	// IP related info
 		return process_esp_repsonse_plus(line);
 	}
@@ -428,11 +447,11 @@ void evaluate_esp_response(char* response, int len) {
 	resp = malloc(len+1);
 	strncpy(resp, response, len);
 	resp[len] = 0;		// EOS
-	/*
+#ifdef WIFI_DEBUG
 	term_print("%s() - %d bytes: %s\r\n", __FUNCTION__, strlen(resp), resp);
 	term_print_hex((uint8_t*)resp, len, 0);
 	term_print("\r\n");
-	*/
+#endif
 	// did we receive data from a connected client? (CR LF +IPD,0,5:xxxxx)
 	if ((resp[2]=='+')&&(resp[3]=='I')&&(resp[4]=='P')) {
 		process_esp_response_ipd(resp, len);

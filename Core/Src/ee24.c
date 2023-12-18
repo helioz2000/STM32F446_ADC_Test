@@ -7,7 +7,7 @@
 extern I2C_HandleTypeDef hi2c1;
 
 #define _EEPROM_PSIZE	8		// Page size
-#define _EEPROM_ADDRESS 0x0A	// I2C device address
+#define _EEPROM_ADDRESS 0xA0	// I2C device address
 #define _EEPROM_I2C hi2c1		// I2C port
 
 
@@ -16,7 +16,7 @@ uint8_t ee24_lock = 0;
 //################################################################################################################
 bool ee24_isConnected(void)
 {
-  if (HAL_I2C_IsDeviceReady(&_EEPROM_I2C, _EEPROM_ADDRESS, 2, 100)!=HAL_OK)
+  if (HAL_I2C_IsDeviceReady(&_EEPROM_I2C, _EEPROM_ADDRESS, 2, 200)!=HAL_OK)
     return false;
 
   return true;
