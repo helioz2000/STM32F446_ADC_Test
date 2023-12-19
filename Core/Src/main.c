@@ -281,12 +281,21 @@ int main(void)
   }*/
 #endif
 
-  // eeprom example code
-
   if (!ee24_isConnected()) {
 	  term_print("Error: EEPROM not found\r\n");
   } else {
-	  ee24_read_byte(0x00, (uint8_t *) eeprom_buf);
+	  if (ee24_read_word(EEPROM_ADDR_VERSION, (uint16_t *) &eeprom_buf) != true) {
+		  term_print("Error: EEPROM read error\r\n");
+	  } else {
+
+		term_print("EEPROM: %2X %2X\r\n", eeprom_buf[0], eeprom_buf[1]);
+		if ((eeprom_buf[0] == 0xFF) && (eeprom_buf[0] == 0xFF)) {		// new/blank EEPROM
+			eeprom_buf[0] = VERSION_MAJOR; eeprom_buf[0] = VERSION_MINOR;
+			if (ee24_write_byte(0x01,(uint8_t *) &eeprom_buf) != true ) {
+				term_print("Error: EEPROM write failed\r\n");
+			}
+		}
+	  }
   }
   /*
   eeprom_buf[0] = 0x33;

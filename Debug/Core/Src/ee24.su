@@ -1,5 +1,7 @@
-../Core/Src/ee24.c:17:6:ee24_isConnected	8	static
-../Core/Src/ee24.c:26:6:ee24_write_byte	24	static
-../Core/Src/ee24.c:39:6:ee24_write	40	static
-../Core/Src/ee24.c:78:6:ee24_read_byte	24	static
-../Core/Src/ee24.c:93:6:ee24_read	32	static
+../Core/Src/ee24.c:22:6:ee24_isConnected	8	static
+../Core/Src/ee24.c:33:6:ee24_write_byte	40	static
+../Core/Src/ee24.c:63:6:ee24_write_word	32	static
+../Core/Src/ee24.c:81:6:ee24_write	24	static
+../Core/Src/ee24.c:126:6:ee24_read_byte	32	static
+../Core/Src/ee24.c:145:6:ee24_read_word	32	static
+../Core/Src/ee24.c:163:6:ee24_read	40	static

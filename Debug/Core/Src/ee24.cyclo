@@ -1,5 +1,7 @@
-../Core/Src/ee24.c:17:6:ee24_isConnected	2
-../Core/Src/ee24.c:26:6:ee24_write_byte	3
-../Core/Src/ee24.c:39:6:ee24_write	6
-../Core/Src/ee24.c:78:6:ee24_read_byte	3
-../Core/Src/ee24.c:93:6:ee24_read	3
+../Core/Src/ee24.c:22:6:ee24_isConnected	2
+../Core/Src/ee24.c:33:6:ee24_write_byte	6
+../Core/Src/ee24.c:63:6:ee24_write_word	3
+../Core/Src/ee24.c:81:6:ee24_write	1
+../Core/Src/ee24.c:126:6:ee24_read_byte	3
+../Core/Src/ee24.c:145:6:ee24_read_word	3
+../Core/Src/ee24.c:163:6:ee24_read	3
