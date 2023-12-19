@@ -35,11 +35,10 @@ bool ee24_write_byte(uint16_t address, uint8_t *data)
 	if (ee24_lock == 1) return false;
 	ee24_lock = 1;
 
-	HAL_StatusTypeDef result = HAL_I2C_Mem_Write(&_EEPROM_I2C, _EEPROM_ADDRESS, address, I2C_MEMADD_SIZE_8BIT, data, 1, 5000);
-	if (result != HAL_OK)
+	if (HAL_I2C_Mem_Write(&_EEPROM_I2C, _EEPROM_ADDRESS, address, I2C_MEMADD_SIZE_8BIT, data, 1, 100) != HAL_OK)
 	//if (HAL_I2C_Mem_Write_DMA(&_EEPROM_I2C, _EEPROM_ADDRESS, address, I2C_MEMADD_SIZE_8BIT, data, 1) != HAL_OK)
 	{
-		term_print("%s() HAL result = %u\r\n",__FUNCTION__, result);
+	/*	term_print("%s() HAL result = %u\r\n",__FUNCTION__, result);
 		if (result == HAL_BUSY) { term_print("HAL_BUSY\r\n"); }
 		if (result == HAL_ERROR) {
 			switch(hi2c1.ErrorCode) {
@@ -49,7 +48,7 @@ bool ee24_write_byte(uint16_t address, uint8_t *data)
 			default:
 				term_print("HAL_ERROR %u\r\n", hi2c1.ErrorCode);
 			}
-		}
+		}*/
 		ee24_lock = 0;
 		return false;
 	}
