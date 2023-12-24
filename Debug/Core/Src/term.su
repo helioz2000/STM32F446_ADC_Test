@@ -4,4 +4,4 @@
 ../Core/Src/term.c:61:6:term_show_buffer	32	static
 ../Core/Src/term.c:80:6:term_show_measurements	88	static
 ../Core/Src/term.c:91:6:term_show_channel	32	static
-../Core/Src/term.c:111:6:term_csv_buffer	24	static
+../Core/Src/term.c:112:6:term_csv_buffer	24	static

@@ -17,7 +17,9 @@ struct sampleBufMeta {
 	int zero_cross_pos;		// positive slope crossing, -1 = uninitialized, -9 = zero detection error
 	int zero_cross_neg;		// negative slope crossing
 	uint8_t measurements_valid;	// 0 - measurements are not valid (have not been calculated)
+	uint8_t value_is_zero;	// 1 when the the analog reading is below the noise level.
 	int rms_value;			// calculated RMS value
+
 };
 
 // Enable lines below to activate code for additional channels
@@ -35,7 +37,7 @@ struct sampleBufMeta {
 #define MEASUREMENT_INTERVAL 200	// [ms] calculate measurements from curves and add them to the filter
 
 // WiFi module (ESP-01) definitions
-#define USE_WIFI		// comment out to disable WiFi code
+//#define USE_WIFI		// comment out to disable WiFi code
 
 
 // line below controls TFT display usage
@@ -46,9 +48,10 @@ struct sampleBufMeta {
 
 #define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading
 #define ADC_FS_MV 3300		// millivolt at full scale
-#define ADC_FS_CH_V	800		// P-P V at full scale (800V P-P = 400 * 0.707 = 282V RMS)
-#define ADC_FS_CH_I 200		// P-P A at full scale (200A P-P = 100 * 0.707 = 70A RMS)
+#define ADC_FS_CH_V	781		// P-P V at full scale (760V P-P = 380 * 0.707 = 268V RMS)
+#define ADC_FS_CH_I 226		// P-P A at full scale (200A P-P = 100 * 0.707 = 70A RMS)
 #define ADC_CENTER_RAW 1861	// centre of signal (1500mV = 1861, 1650mV = 2047)
+#define ADC_NOISE_RAW 20	// readings below this level are considered to be noise are are replaced with zero
 
 #define ADC_NUM 2		// number of ADCs in use
 #define ADC1_IDX 0			// ADC1 index for arrays
@@ -66,13 +69,15 @@ struct sampleBufMeta {
 
 // identify buffers by signal source
 #define ADC_CH_V 0
-#define ADC_CH_I1 1
+#define ADC_CH_I1 3
 #define ADC_CH_I2 2
-#define ADC_CH_I3 3
+#define ADC_CH_I3 1
 
 // ADC scaling
 #define ADC_V_MV_PER_BIT
 #define ADC_I1_MA_PER_BIT
+
+#define I1_MIN_PF 1.0		// minimum current required for PF calculation
 
 
 /*

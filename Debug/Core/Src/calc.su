@@ -1,9 +1,9 @@
 ../Core/Src/calc.c:73:5:calc_process_dma_buffer	40	static
-../Core/Src/calc.c:133:6:calc_zero_detector	40	static
-../Core/Src/calc.c:201:6:calc_downsample	48	static
-../Core/Src/calc.c:225:6:calc_filter_measurements	16	static
-../Core/Src/calc.c:268:5:calc_measurements	200	static
-../Core/Src/calc.c:414:5:calc_adc_raw_to_mv_int	16	static
-../Core/Src/calc.c:421:7:calc_adc_raw_to_mv_float	16	static
-../Core/Src/calc.c:428:7:calc_adc_raw_to_V	16	static
-../Core/Src/calc.c:435:7:calc_adc_raw_to_A	16	static
+../Core/Src/calc.c:135:6:calc_zero_detector	40	static
+../Core/Src/calc.c:203:6:calc_downsample	48	static
+../Core/Src/calc.c:234:6:calc_filter_measurements	16	static
+../Core/Src/calc.c:277:5:calc_measurements	200	static
+../Core/Src/calc.c:446:5:calc_adc_raw_to_mv_int	16	static
+../Core/Src/calc.c:453:7:calc_adc_raw_to_mv_float	16	static
+../Core/Src/calc.c:460:7:calc_adc_raw_to_V	16	static
+../Core/Src/calc.c:467:7:calc_adc_raw_to_A	16	static

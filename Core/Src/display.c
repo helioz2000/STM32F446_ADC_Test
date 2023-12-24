@@ -25,7 +25,7 @@ extern char copyright_msg[];
 extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
 extern uint8_t meter_readings_invalid;
 
-uint16_t channel_colour[4] = { GREEN, ORANGE, CYAN, BLUE};
+uint16_t channel_colour[4] = { GREEN, BLUE, CYAN, ORANGE};
 int curve_y[ADC_NUM_DATA/4];		// store the curve before drawing, enables overwrite on next curve
 uint16_t curve_y_zero;		// zero line of curve
 uint16_t curve_y_size = 60;
@@ -101,10 +101,14 @@ void display_screen1() {
 		snprintf(str,sizeof(str),"%4.2f", fabs(metervalue_pf1) );
 		Displ_WString(9, 130, str , Font30, 1, WHITE, BLACK);
 		// Angle
-		if (metervalue_pf1 < 0) {
-			snprintf(str,sizeof(str),"%4.0f", acos(metervalue_pf1) * (180.0 / 3.14159265) );
+		if (metervalue_i1 >= I1_MIN_PF) {
+			if (metervalue_pf1 < 0) {
+				snprintf(str,sizeof(str),"%4.0f", acos(metervalue_pf1) * (180.0 / 3.14159265) );
+			} else {
+				snprintf(str,sizeof(str),"%4.1f", acos(metervalue_pf1) * (180.0 / 3.14159265) );
+			}
 		} else {
-			snprintf(str,sizeof(str),"%4.1f", acos(metervalue_pf1) * (180.0 / 3.14159265) );
+			snprintf(str,sizeof(str)," 0.0");
 		}
 		Displ_WString(138, 130, str , Font30, 1, WHITE, BLACK);
 	} else {		// display for invalid measurements
@@ -325,24 +329,20 @@ void draw_curve(uint16_t colour, uint8_t dont_clear, uint8_t centre_zero) {
  * represents plus/minus values centered around the half way point of the data range.
  * The (+/-)curve points are scaled to fit the vertical resolution of the graph.
  */
-void make_curve(uint8_t bufnum) {
+void make_curve(uint8_t bufnum, uint8_t auto_scale) {
 	int value;
 	int scale_factor = 1;
 	int src_idx = 0;
-	int zero_value = ADC_FS_RAW / 2;	// zero should be half way if DC-Bias is accurate
+	int range = sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min;
+	int zero_value = range / 2 + sample_buf_meta[bufnum].min;	// zero should be half way if DC-Bias is accurate
 	int curve_y_min;
-	// Note: The actual raw value of the DC bias may need to be tracked.
+	float fScale;
 
-	// ToDo: Remove below, this is only for testing with the function generator
-	// and a DC-coupled signal. Once the signal is AC coupled it should be centered around
-	// the DC-bias which is half of the ADC full scale
-	if (sample_buf_meta[bufnum].zero_cross_pos >= 0) {
-	//	zero_value = (sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min) / 2;
+	if (auto_scale) {
+		fScale = (float)curve_y_size / (float)range;
+	} else {
+		fScale = (float)curve_y_size / ADC_FS_RAW;
 	}
-
-	//term_print("zero_value = %d\r\n", zero_value);
-
-	float fScale = (float)curve_y_size / (float)sample_buf_meta[bufnum].max;
 	if (fScale < 1) {
 		scale_factor = trunc(1/fScale)+1; // divisor
 		//value = sample_buf_meta[bufnum].max / scale_factor;
@@ -384,11 +384,21 @@ void make_curve(uint8_t bufnum) {
  * Display curves for all configured channels on TFT display
  */
 void display_show_curves(void) {
-	uint8_t dont_clear = 0;
-	for (int i=0; i<=NUM_I_SENSORS; i++) {
-		make_curve(i);
-		draw_curve(channel_colour[i], dont_clear, (sample_buf_meta[i].zero_cross_pos >= 0));
-		dont_clear = 1;
+
+	make_curve(ADC_CH_V, 0);
+	draw_curve(channel_colour[ADC_CH_V], 0, (sample_buf_meta[ADC_CH_V].zero_cross_pos >= 0));
+
+	if (!sample_buf_meta[ADC_CH_I1].value_is_zero) {
+		make_curve(ADC_CH_I1, 1);
+		draw_curve(channel_colour[ADC_CH_I1], 1, (sample_buf_meta[ADC_CH_I1].zero_cross_pos >= 0));
+	}
+	if ((NUM_I_SENSORS > 1)&&(!sample_buf_meta[ADC_CH_I2].value_is_zero)) {
+		make_curve(ADC_CH_I2, 1);
+		draw_curve(channel_colour[ADC_CH_I2], 1, (sample_buf_meta[ADC_CH_I2].zero_cross_pos >= 0));
+	}
+	if ((NUM_I_SENSORS > 2)&&(!sample_buf_meta[ADC_CH_I3].value_is_zero)) {
+		make_curve(ADC_CH_I3, 1);
+		draw_curve(channel_colour[ADC_CH_I3], 1, (sample_buf_meta[ADC_CH_I3].zero_cross_pos >= 0));
 	}
 }
 
@@ -400,7 +410,7 @@ void display_show_curves(void) {
 void display_show_curve(uint8_t bufnum) {
 	if ( (bufnum >= ADC_NUM_BUFFERS) || (bufnum < 0) ) return;	// buffer range check
 
-	make_curve(bufnum);
+	make_curve(bufnum, 1);
 	draw_curve(channel_colour[bufnum], 0, (sample_buf_meta[bufnum].measurements_valid != 0));
 
 }

@@ -77,7 +77,7 @@ int cmd_help(void) {
 #endif
 	term_print("E: Toggle ESP mode\r\n");
 	term_print("L[0,1]: LED L2 OFF / ON\r\n");
-	term_print("M show measurements using all channels");
+	term_print("M show measurements using all channels\r\n");
 	term_print("M[1..4]: Show measurements for ADC channel 1 - 4 buffer in terminal \r\n");
 	term_print("P[2000..2500]: adjust timer value for sample time\r\n");
 	term_print("R: Restart ADC conversion\r\n");

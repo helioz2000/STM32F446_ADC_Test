@@ -90,17 +90,18 @@ void term_show_measurements() {
 
 void term_show_channel(uint8_t bufnum) {
 	if (bufnum >= ADC_NUM_BUFFERS) { return; }
-	if (sample_buf_meta[bufnum].measurements_valid != 1) {
-		term_print("ADC raw: %d - %d (%d)\r\n", sample_buf_meta[bufnum].min, sample_buf_meta[bufnum].max, sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min  );
-		term_print("Range: %dmV - %dmV\r\n", calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].min), calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max) );
-		term_print("Buffer %d - invalid readings\r\n", bufnum);
-		return;
-	}
-	int pp_reading = sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min;
 	term_print("Measurements Buffer %d:\r\n", bufnum);
+	if (sample_buf_meta[bufnum].measurements_valid != 1) {
+		term_print("Buffer %d - invalid readings\r\n", bufnum);
+		//term_print("Range: %dmV - %dmV\r\n", calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].min), calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max) );
+		//return;
+	}
+
+	int pp_reading = sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min;
+	term_print("ADC raw: %d - %d (%d)\r\n", sample_buf_meta[bufnum].min, sample_buf_meta[bufnum].max, pp_reading );
 	term_print("RMS: %dmV, P-P:%d mV, Zero: %dmV\r\n", calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].rms_value) ,
 			calc_adc_raw_to_mv_int(pp_reading),
-			calc_adc_raw_to_mv_int(pp_reading/2) );
+			calc_adc_raw_to_mv_int(pp_reading/2 + sample_buf_meta[bufnum].min) );
 	term_print("Range: %dmV - %dmV\r\n", calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].min), calc_adc_raw_to_mv_int(sample_buf_meta[bufnum].max) );
 	term_print("Zero crossing: pos=%d neg=%d\r\n", sample_buf_meta[bufnum].zero_cross_pos, sample_buf_meta[bufnum].zero_cross_neg);
 }

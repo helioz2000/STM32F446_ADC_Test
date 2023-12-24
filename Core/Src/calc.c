@@ -101,6 +101,8 @@ int calc_process_dma_buffer(int second_half, int adc_num) {
 	sample_buf_meta[raw_buf_second].zero_cross_neg = -1;
 	sample_buf_meta[raw_buf_first].measurements_valid = 0;
 	sample_buf_meta[raw_buf_second].measurements_valid = 0;
+	sample_buf_meta[raw_buf_first].value_is_zero = 0;
+	sample_buf_meta[raw_buf_second].value_is_zero = 0;
 
 	// split DMA buffer in to channels and copy readings into raw buffers
 	// step of ADC_NUM_CHANNELS = 2
@@ -196,7 +198,7 @@ void calc_zero_detector(uint8_t bufnum, int zeropoint, int window) {
  * Down-sample ADC raw readings into sample buffer
  * This function provides a filter for the raw ADC readings. It halves
  * the number of samples and averages adjoining samples to smooth out peaks.
- * It also establishes the meta data (min/max and zero crossing) for both channel
+ * It also establishes the meta data (min/max and zero crossing, etc)
  */
 void calc_downsample(uint8_t bufnum) {
 	uint16_t range;
@@ -219,7 +221,14 @@ void calc_downsample(uint8_t bufnum) {
 	// range of readings
 	range = sample_buf_meta[bufnum].max - sample_buf_meta[bufnum].min;
 	// detect zero crossings
-	calc_zero_detector(bufnum, range / 2 + sample_buf_meta[bufnum].min, range/5);
+	if (range > ADC_NOISE_RAW) {
+		calc_zero_detector(bufnum, range / 2 + sample_buf_meta[bufnum].min, range/5);
+	} else {
+		// mark zero crossings as invalid
+		sample_buf_meta[bufnum].zero_cross_neg = -9;
+		sample_buf_meta[bufnum].zero_cross_pos = -9;
+		sample_buf_meta[bufnum].value_is_zero = 1;		// value is zero
+	}
 }
 
 void calc_filter_measurements(void) {
@@ -276,7 +285,9 @@ int calc_measurements(void) {
 	int16_t i_reading;			// could be negative if current is leading or lagging
 	double va_instant;			// instant VA value
 	uint16_t v_zero;
+	uint16_t v_pp;				// Voltage channel Peak-Peak
 	uint16_t i1_zero;
+	uint16_t i1_pp;			// Current channel P-P
 	float w=0, va=0;
 
 	// no zero crossing?
@@ -295,13 +306,17 @@ int calc_measurements(void) {
 
 	meter_readings_invalid = 0;		// readings are valid
 
-	v_zero = (sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min) / 2;
-	i1_zero = (sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min) / 2;
+	v_pp = sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min;
+	v_zero = v_pp / 2 + sample_buf_meta[ADC_CH_V].min;
+	i1_pp = sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min;
+	i1_zero = i1_pp / 2 + sample_buf_meta[ADC_CH_I1].min;
 
 	// Calculate values using the positive half of the sine wave
 
-	// add up squared measurements
+	// Add up squared measurements
+	// does the positive x-ing come before the negative?
 	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < sample_buf_meta[ADC_CH_V].zero_cross_neg) {
+		// iterate from positive to negative crossing (positive half wave)
 		for (i=sample_buf_meta[ADC_CH_V].zero_cross_pos; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
 			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
 			v_sq_acc += v_reading * v_reading;
@@ -315,7 +330,8 @@ int calc_measurements(void) {
 				i1_w_acc += abs(va_instant);
 			}
 		}
-	} else {
+	} else {	// negative crossing is first
+		// iterate from positive x-ing to the end of the buffer ....
 		for (i=sample_buf_meta[ADC_CH_V].zero_cross_pos; i<SAMPLE_BUF_SIZE; i++ ) {
 			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
 			v_sq_acc += v_reading * v_reading;
@@ -329,6 +345,7 @@ int calc_measurements(void) {
 				i1_w_acc += abs(va_instant);
 			}
 		}
+		// ..... the continue iterating from the start of the buffer to the negative crossing
 		for (i=SAMPLE_BUF_OVERLAP; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
 			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
 			v_sq_acc += v_reading * v_reading;
@@ -345,18 +362,33 @@ int calc_measurements(void) {
 		}
 	}
 
+	// Calculate measured RMS voltage
 	v_measured = calc_adc_raw_to_V (sqrt((v_sq_acc / num_readings)));		// RMS voltage
-	i1_measured = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
-	if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
-	if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
-	va1_measured = v_measured * i1_measured;
-	if (w > 0) {
-		w1_measured = va - w;
+	//v_measured = calc_adc_raw_to_V(v_pp) / 2 * 0.707;		// only works for a perfect sine wave (no distortion)
+
+	pf1_measured = 1.0;		// assumed PF
+	// do we have zero (below ADC noise) current reading?
+	if (sample_buf_meta[ADC_CH_I1].value_is_zero) {	// set all measured values to zero
+		i1_measured = 0.0;
+		va1_measured = 0.0;
+		w1_measured = 0.0;
+
 	} else {
-		w1_measured = va1_measured;
+		i1_measured = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
+		if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
+		if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
+		va1_measured = v_measured * i1_measured;
+		if (w > 0) {
+			w1_measured = va - w;
+		} else {
+			w1_measured = va1_measured;
+		}
+		if (i1_measured >= I1_MIN_PF) {			// Calculate PF if we have sufficient current
+			pf1_measured = w1_measured / va1_measured;
+		}
+		sample_buf_meta[ADC_CH_V].measurements_valid = 1;
+		sample_buf_meta[ADC_CH_I1].measurements_valid = 1;
 	}
-	pf1_measured = w1_measured / va1_measured;
-	sample_buf_meta[ADC_CH_V].measurements_valid = 1;
 
 	// add measurements to filter
 	calc_filter_measurements();
