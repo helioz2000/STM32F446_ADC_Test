@@ -94,6 +94,8 @@ bool ee24_read_done = false;
 __IO uint8_t display_activate = 0;	// screen saver off
 __IO uint8_t display_change = 0;		// change active screen
 
+__IO uint8_t touch_action = 0;
+
 uint8_t adc_restart = 0;
 uint8_t tft_display = 0;
 uint8_t esp_mode = 0;
@@ -109,16 +111,19 @@ __IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// one DMA buffer for eac
 uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];		// buffer for 4 channels of downsampled data
 
-float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
+float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue_pf;
 
 uint32_t display_off_ticks;
+uint32_t touch_debounce_ticks;
 uint32_t display_splash_ticks;
 uint32_t display_update_ticks;
 uint32_t now_ticks, last_ticks;
 uint32_t next_measurement_time;
 uint32_t next_process_time;
 #define PROCESS_INTERVAL 100;	// run slow process every n ms
-#define SCREEN_MAX 2
+#define SCREEN_MAX 4
+
+#define TOUCH_DEBOUNCE_TIME 500	// ticks
 
 #define CLI_UART huart2
 #define ESP_UART huart3
@@ -464,6 +469,21 @@ int main(void)
 			display_update_mask();
 			Displ_BackLight('1');
 			display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;
+		}
+
+		if (touch_action) {			// touch screen
+			touch_action = 0;
+			if (now_ticks < touch_debounce_ticks){
+				;	// do nothing
+			} else {
+				touch_debounce_ticks = HAL_GetTick() + TOUCH_DEBOUNCE_TIME;
+				// if Backlight is OFF
+				if (HAL_GPIO_ReadPin(DISPL_LED_GPIO_Port, DISPL_LED_Pin) == GPIO_PIN_RESET) {
+					display_activate = 1;		// activate backlight
+				} else {		// backlight is already on -> change display
+					display_change = 1;
+				}
+			}
 		}
 
 #endif
@@ -997,7 +1017,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	switch(GPIO_Pin) {
 	case GPIO_PIN_4:		// IRQ from Touch screen
-		display_activate = 1;
+		touch_action = 1;
 		break;
 	case GPIO_PIN_13:		// Blue button on Development board
 		display_change = 1;

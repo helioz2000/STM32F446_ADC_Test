@@ -31,9 +31,9 @@
 #include "term.h"
 
 extern uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];
-//extern uint16_t adc2_dma_buf[];
 
-extern float metervalue_v, metervalue_i1, metervalue_va1, metervalue_w1, metervalue_pf1;
+extern float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue_pf;
+extern uint8_t display_channel;
 
 extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
@@ -43,13 +43,16 @@ struct sampleBufMeta sample_buf_meta[ADC_NUM_BUFFERS];					// store meta data fo
 uint8_t meter_readings_invalid = 0;
 
 #define FILTER_NUM 10
-float v_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-float i1_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-float va1_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-float w1_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-float pf1_filter[FILTER_NUM] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float v_filter[FILTER_NUM]; // = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float i_filter[NUM_I_SENSORS][FILTER_NUM]; // = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float va_filter[NUM_I_SENSORS][FILTER_NUM]; // = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float w_filter[NUM_I_SENSORS][FILTER_NUM]; // = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+float pf_filter[NUM_I_SENSORS][FILTER_NUM]; // = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 
-float v_measured, i1_measured, va1_measured, w1_measured, pf1_measured;
+float v_filtered;
+float i_filtered[NUM_I_SENSORS], va_filtered[NUM_I_SENSORS], w_filtered[NUM_I_SENSORS], pf_filtered[NUM_I_SENSORS];
+
+float v_measured, i_measured[NUM_I_SENSORS], va_measured[NUM_I_SENSORS], w_measured[NUM_I_SENSORS], pf_measured[NUM_I_SENSORS];
 
 
 //inline int16_t MAX(int16_t a, int16_t b) { return((a) > (b) ? a : b); }
@@ -231,43 +234,80 @@ void calc_downsample(uint8_t bufnum) {
 	}
 }
 
-void calc_filter_measurements(void) {
-
+/*
+ * @brief  Add new value to voltage filter
+ * @para newValue: The new value to add to the filter
+ */
+void calc_filter_add_v(float newValue) {
+	float v_total = 0;
 	// shift filter values to make room for new measurement
 	for (int i=0; i<FILTER_NUM-1; i++) {
 		v_filter[i] = v_filter[i+1];
-		i1_filter[i] = i1_filter[i+1];
-		va1_filter[i] = va1_filter[i+1];
-		w1_filter[i] = w1_filter[i+1];
-		pf1_filter[i] = pf1_filter[i+1];
+		v_total += v_filter[i];			// accumulate total
 	}
 	// add new measurements
-	v_filter[FILTER_NUM-1] = v_measured;
-	i1_filter[FILTER_NUM-1] = i1_measured;
-	va1_filter[FILTER_NUM-1] = va1_measured;
-	w1_filter[FILTER_NUM-1] = w1_measured;
-	pf1_filter[FILTER_NUM-1] = pf1_measured;
+	v_filter[FILTER_NUM-1] = newValue;
+	v_total += newValue;
+	v_filtered = v_total / FILTER_NUM;
+}
 
-	// zero readings
-	metervalue_v = 0.0;
-	metervalue_i1 = 0.0;
-	metervalue_va1 = 0.0;
-	metervalue_w1 = 0.0;
-	metervalue_pf1 = 0.0;
-	// add filter values
-	for (int i=0; i<FILTER_NUM; i++) {
-		metervalue_v += v_filter[i];
-		metervalue_i1 += i1_filter[i];
-		metervalue_va1 += va1_filter[i];
-		metervalue_w1 += w1_filter[i];
-		metervalue_pf1 += pf1_filter[i];
+/*
+ * @brief  Add new values to current filters and calculate filtered values
+ * @para channel:      Current channel I1=0, I2=1, I3=2
+ * @para new_i_value:  The new current value to add to the filter
+ * @para new_va_value: The new va value to add to the filter
+ * @para new_w_value:  The new w value to add to the filter
+ * @para new_pf_value: The new PF value to add to the filter
+ */
+void calc_filter_add_i(uint8_t channel, float new_i_value, float new_va_value, float new_w_value, float new_pf_value) {
+	float i_total=0, va_total=0, w_total=0, pf_total=0;
+	// shift filter values to make room for new measurement
+	for (int i=0; i<FILTER_NUM-1; i++) {
+		i_filter[channel][i] = i_filter[channel][i+1];
+		i_total += i_filter[channel][i];
+		va_filter[channel][i] = va_filter[channel][i+1];
+		va_total += va_filter[channel][i];
+		w_filter[channel][i] = w_filter[channel][i+1];
+		w_total += w_filter[channel][i];
+		pf_filter[channel][i] = pf_filter[channel][i+1];
+		pf_total += pf_filter[channel][i];
 	}
-	// calculate filtered valued
-	metervalue_v /= FILTER_NUM;
-	metervalue_i1 /= FILTER_NUM;
-	metervalue_va1 /= FILTER_NUM;
-	metervalue_w1 /= FILTER_NUM;
-	metervalue_pf1 /= FILTER_NUM;
+	// add new measurements
+	i_filter[channel][FILTER_NUM-1] = new_i_value;
+	i_total += new_i_value;
+	va_filter[channel][FILTER_NUM-1] = new_va_value;
+	va_total += new_va_value;
+	w_filter[channel][FILTER_NUM-1] = new_w_value;
+	w_total += new_w_value;
+	pf_filter[channel][FILTER_NUM-1] = new_pf_value;
+	pf_total += new_pf_value;
+
+	i_filtered[channel] = i_total / FILTER_NUM;
+	va_filtered[channel] = va_total / FILTER_NUM;
+	w_filtered[channel] = w_total / FILTER_NUM;
+	pf_filtered[channel] = pf_total / FILTER_NUM;
+}
+
+
+/*
+ * @brief   Assign filtered values to meter values
+ */
+void calc_assign_meter_values(uint8_t channel) {
+	// assign filtered valued
+	if (channel >= NUM_I_SENSORS) {
+		metervalue_v = 0.0;
+		metervalue_i = 0.0;
+		metervalue_va = 0.0;
+		metervalue_w = 0.0;
+		metervalue_pf = 0.0;
+		meter_readings_invalid = 1;
+		return;
+	}
+	metervalue_v = v_filtered;
+	metervalue_i = i_filtered[channel];
+	metervalue_va = va_filtered[channel];
+	metervalue_w = w_filtered[channel];
+	metervalue_pf = pf_filtered[channel];
 }
 
 /*
@@ -353,7 +393,6 @@ int calc_measurements(void) {
 			i1_sq_acc += i_reading * i_reading;
 			num_readings++;
 			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i_reading);
-
 			if (i_reading >= 0) {
 				i1_va_acc += va_instant;
 			} else {
@@ -366,32 +405,35 @@ int calc_measurements(void) {
 	v_measured = calc_adc_raw_to_V (sqrt((v_sq_acc / num_readings)));		// RMS voltage
 	//v_measured = calc_adc_raw_to_V(v_pp) / 2 * 0.707;		// only works for a perfect sine wave (no distortion)
 
-	pf1_measured = 1.0;		// assumed PF
+	pf_measured[I1] = 1.0;		// assumed PF
 	// do we have zero (below ADC noise) current reading?
 	if (sample_buf_meta[ADC_CH_I1].value_is_zero) {	// set all measured values to zero
-		i1_measured = 0.0;
-		va1_measured = 0.0;
-		w1_measured = 0.0;
+		i_measured[I1] = 0.0;
+		va_measured[I1] = 0.0;
+		w_measured[I1] = 0.0;
 
 	} else {
-		i1_measured = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
+		i_measured[I1] = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
 		if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
 		if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
-		va1_measured = v_measured * i1_measured;
+		va_measured[I1] = v_measured * i_measured[I1];
 		if (w > 0) {
-			w1_measured = va - w;
+			w_measured[I1] = va - w;
 		} else {
-			w1_measured = va1_measured;
+			w_measured[I1] = va_measured[I1];
 		}
-		if (i1_measured >= I1_MIN_PF) {			// Calculate PF if we have sufficient current
-			pf1_measured = w1_measured / va1_measured;
+		if (w_measured[I1] > va_measured[I1]) w_measured[I1] = va_measured[I1];		// W must be =< than VA
+		if (i_measured[I1] >= I1_MIN_PF) {			// Calculate PF if we have sufficient current
+			pf_measured[I1] = w_measured[I1] / va_measured[I1];
 		}
 		sample_buf_meta[ADC_CH_V].measurements_valid = 1;
 		sample_buf_meta[ADC_CH_I1].measurements_valid = 1;
 	}
 
 	// add measurements to filter
-	calc_filter_measurements();
+	calc_filter_add_v(v_measured);
+	calc_filter_add_i(I1, i_measured[I1], va_measured[I1], w_measured[I1], pf_measured[I1]);
+	calc_assign_meter_values(display_channel);
 
 	return 0;
 }

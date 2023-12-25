@@ -27,12 +27,17 @@ struct sampleBufMeta {
 //#define I3_IN_USE
 
 #define NUM_I_SENSORS 1
+#define I1 0		// index for measurements
+#define I2 1
+#define I3 2
 
 #ifdef I2_IN_USE
 #define NUM_I_SENSORS 2
+
 #elif I3_IN_USE
 #define NUM_I_SENSORS 3
 #endif
+
 
 #define MEASUREMENT_INTERVAL 200	// [ms] calculate measurements from curves and add them to the filter
 

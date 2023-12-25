@@ -100,7 +100,7 @@ int cmd_process(uint8_t* cmd_str) {
 		if (strlen((char*)cmd_str) > 1) {
 			display_show_curve(cmd_str[1] - 0x31);
 		} else {
-			display_show_curves();
+			//display_show_curves();
 		}
 		retval = 0;
 		break;
