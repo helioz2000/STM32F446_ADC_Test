@@ -26,7 +26,7 @@ extern float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue
 extern uint8_t meter_readings_invalid;
 
 uint8_t display_channel = 0;		// active display channel I1, I2, I3
-uint16_t channel_colour[4] = { GREEN, BLUE, CYAN, ORANGE};
+uint16_t channel_colour[4] = { GREEN, CYAN, MAGENTA, ORANGE, };	// V, I1, I2, I3
 int curve_y[ADC_NUM_DATA/4];		// store the curve before drawing, enables overwrite on next curve
 uint16_t curve_y_zero;		// zero line of curve
 uint16_t curve_y_size = 60;
@@ -85,22 +85,23 @@ void display_corners() {
 
 // channel detail screen
 void display_channel_detail() {
+	uint16_t font_col = channel_colour[display_channel+1];
 	if (!meter_readings_invalid) {
 		// V
 		snprintf(str,sizeof(str),"%3.0f", metervalue_v);
 		Displ_WString(9, 7, str , Font30, 1, GREEN, BLACK);
 		// I
 		snprintf(str,sizeof(str),"%4.1f", metervalue_i);
-		Displ_WString(120, 7, str , Font30, 1, ORANGE, BLACK);
+		Displ_WString(120, 7, str , Font30, 1, font_col, BLACK);
 		// VA
 		snprintf(str,sizeof(str),"%7.1f", metervalue_va );
-		Displ_WString(9, 48, str , Font30, 1, YELLOW, BLACK);
+		Displ_WString(9, 48, str , Font30, 1,  font_col, BLACK);
 		// W
 		snprintf(str,sizeof(str),"%7.1f", metervalue_w );
-		Displ_WString(9, 89, str , Font30, 1, YELLOW, BLACK);
+		Displ_WString(9, 89, str , Font30, 1,  font_col, BLACK);
 		// PF
 		snprintf(str,sizeof(str),"%4.2f", fabs(metervalue_pf) );
-		Displ_WString(9, 130, str , Font30, 1, WHITE, BLACK);
+		Displ_WString(9, 130, str , Font30, 1,  font_col, BLACK);
 
 		// Angle
 		/* if (metervalue_i >= I1_MIN_PF) {
@@ -195,11 +196,11 @@ void display_meter_mask() {
 	Displ_Line(0,ypos+box_height,display_x-1,ypos+box_height,border_col);
 	Displ_Line(display_x-1, ypos+box_height, display_x-1, 0, border_col);
 	Displ_WChar(75, ypos+9, 'V', Font24, 1, font_col, back_col);
-	font_col = ORANGE;
+	font_col = channel_colour[display_channel+1];
 	Displ_WChar(display_x-30, 9, 'A', Font24, 1, font_col, back_col);
 	// VA
 	ypos += box_height+1;
-	border_col = font_col = YELLOW;
+	border_col = YELLOW;
 	Displ_Line(0,ypos,display_x-1,ypos, border_col);
 	Displ_Line(0,ypos,0,ypos+box_height, border_col);
 	Displ_Line(0,ypos+box_height,display_x-1,ypos+box_height,border_col);
@@ -207,7 +208,7 @@ void display_meter_mask() {
 	Displ_WString(display_x-80, ypos+9, "VA", Font24, 1, font_col, back_col);
 	// W
 	ypos += box_height+1;
-	border_col = font_col = YELLOW;
+	border_col = YELLOW;
 	Displ_Line(0,ypos,display_x-1,ypos, border_col);
 	Displ_Line(0,ypos,0,ypos+box_height, border_col);
 	Displ_Line(0,ypos+box_height,display_x-1,ypos+box_height,border_col);
@@ -216,7 +217,7 @@ void display_meter_mask() {
 
 	// PF
 	ypos += box_height+1;
-	border_col = font_col = WHITE;
+	border_col = WHITE;
 	Displ_Line(0,ypos,display_x-1,ypos, border_col);
 	Displ_Line(0,ypos,0,ypos+box_height, border_col);
 	Displ_Line(0,ypos+box_height,display_x-1,ypos+box_height,border_col);
@@ -233,30 +234,38 @@ void display_meter_mask() {
 	Displ_Line(curve_x_zero, curve_y_zero, curve_x_zero+210, curve_y_zero, WHITE);
 
 	// Channel
-	snprintf(str,sizeof(str),"Ch%d", display_channel+1 );
-	Displ_WString(150, 135, str , Font24, 1, WHITE, BLACK);
+	snprintf(str,sizeof(str),"I%d", display_channel+1 );
+	Displ_WString(190, 133, str , Font24, 1, font_col, back_col);
 }
 
 /*
- * Aligns curve to start at positive zero crossing and reduces it to cuts one full cycle
- * parameter bufnum: buffer to use for curve display
- * returns: number of points in the aligned curve or -1 if alignment failed
+ * @ brief       Aligns V + I curve to start at positive zero crossing and reduces it to one full cycle
+ * @retval:      number of points in the aligned curve or -1 if alignment failed
  */
 int display_align_curves() {
 	int dest_idx = -1;
 	int i, continue_at = -1;
+	uint8_t adc_channel;
+
+	switch(display_channel) {
+	case I1:
+		adc_channel = ADC_CH_I1;
+		break;
+	case I2:
+		adc_channel = ADC_CH_I2;
+		break;
+	case I3:
+		adc_channel = ADC_CH_I3;
+		break;
+	default:
+		adc_channel = ADC_CH_I1;
+	}
 
 	// if we don't have a zero crossing use the sample_buf curve entries
 	if (sample_buf_meta[ADC_CH_V].zero_cross_pos < 0) {
 		for (i=0; i<SAMPLE_BUF_SIZE; i++ ) {
 			aligned_curve[ADC_CH_V][i] = sample_buf[ADC_CH_V][i];
-			aligned_curve[ADC_CH_I1][i] = sample_buf[ADC_CH_I1][i];
-#if I2_IN_USE
-			aligned_curve[ADC_CH_I2][i] = sample_buf[ADC_CH_I2][i];
-#endif
-#if I3_IN_USE
-			aligned_curve[ADC_CH_I3][i] = sample_buf[ADC_CH_I3][i];
-#endif
+			aligned_curve[adc_channel][i] = sample_buf[adc_channel][i];
 		}
 		return SAMPLE_BUF_SIZE;
 	}
@@ -265,42 +274,15 @@ int display_align_curves() {
 	for (i=sample_buf_meta[ADC_CH_V].zero_cross_pos; i<SAMPLE_BUF_SIZE; i++ ) {
 		dest_idx++;
 		aligned_curve[ADC_CH_V][dest_idx] = sample_buf[ADC_CH_V][i];
-		aligned_curve[ADC_CH_I1][dest_idx] = sample_buf[ADC_CH_I1][i];
-#if I2_IN_USE
-		aligned_curve[ADC_CH_I2][dest_idx] = sample_buf[ADC_CH_I2][i];
-#endif
-#if I3_IN_USE
-		aligned_curve[ADC_CH_I3][dest_idx] = sample_buf[ADC_CH_I3][i];
-#endif
+		aligned_curve[adc_channel][dest_idx] = sample_buf[adc_channel][i];
 	}
-
-	/*
-	// search for the closest value the last point of the curve
-	for (i=0; i<SAMPLE_BUF_SIZE; i++) {
-		distance = abs(aligned_curve[dest_idx] - sample_buf[bufnum][i]);
-		if (distance < last_distance) {
-			last_distance = distance;
-		} else {
-			if (i>17 && i<23) {	// should be exactly 20
-				continue_at = i;
-				break;	// for loop
-			}
-		}
-	}
-	*/
 
 	continue_at = SAMPLE_BUF_OVERLAP;
 
 	for (i=continue_at; i<sample_buf_meta[ADC_CH_V].zero_cross_pos; i++) {
 		dest_idx++;
 		aligned_curve[ADC_CH_V][dest_idx] = sample_buf[ADC_CH_V][i];
-		aligned_curve[ADC_CH_I1][dest_idx] = sample_buf[ADC_CH_I1][i];
-#if I2_IN_USE
-		aligned_curve[ADC_CH_I2][dest_idx] = sample_buf[ADC_CH_I2][i];
-#endif
-#if I3_IN_USE
-		aligned_curve[ADC_CH_I3][dest_idx] = sample_buf[ADC_CH_I3][i];
-#endif
+		aligned_curve[adc_channel][dest_idx] = sample_buf[adc_channel][i];
 	}
 
 	return ++dest_idx;
@@ -406,29 +388,26 @@ void make_curve(uint8_t bufnum, uint8_t auto_scale) {
  * @brief   Display curves for voltage + selected current channels on TFT display
  */
 void display_show_curves(void) {
-
+	uint8_t adc_channel;
 	make_curve(ADC_CH_V, 0);
 	draw_curve(channel_colour[ADC_CH_V], 0, (sample_buf_meta[ADC_CH_V].zero_cross_pos >= 0));
 
 	switch(display_channel) {
 	case I1:
-		if (!sample_buf_meta[ADC_CH_I1].value_is_zero) {
-			make_curve(ADC_CH_I1, 1);
-			draw_curve(channel_colour[ADC_CH_I1], 1, (sample_buf_meta[ADC_CH_I1].zero_cross_pos >= 0));
-		}
+		adc_channel = ADC_CH_I1;
 		break;
 	case I2:
-		if ((NUM_I_SENSORS > 1)&&(!sample_buf_meta[ADC_CH_I2].value_is_zero)) {
-			make_curve(ADC_CH_I2, 1);
-			draw_curve(channel_colour[ADC_CH_I2], 1, (sample_buf_meta[ADC_CH_I2].zero_cross_pos >= 0));
-		}
+		adc_channel = ADC_CH_I2;
 		break;
 	case I3:
-		if ((NUM_I_SENSORS > 2)&&(!sample_buf_meta[ADC_CH_I3].value_is_zero)) {
-			make_curve(ADC_CH_I3, 1);
-			draw_curve(channel_colour[ADC_CH_I3], 1, (sample_buf_meta[ADC_CH_I3].zero_cross_pos >= 0));
-		}
+		adc_channel = ADC_CH_I3;
 		break;
+	default:
+		adc_channel = ADC_CH_I1;
+	}
+	if (!sample_buf_meta[adc_channel].value_is_zero) {
+		make_curve(adc_channel, 1);
+		draw_curve(channel_colour[display_channel+1], 1, (sample_buf_meta[adc_channel].zero_cross_pos >= 0));
 	}
 }
 
@@ -437,10 +416,10 @@ void display_show_curves(void) {
  * parameter bufnum: adc_raw_buf index to ADC channel
  * Disp_CLS() takes a long time to run so we draw the previous curve in black to remove it
  */
-void display_show_curve(uint8_t bufnum) {
+/*void display_show_curve(uint8_t bufnum) {
 	if ( (bufnum >= ADC_NUM_BUFFERS) || (bufnum < 0) ) return;	// buffer range check
 
 	make_curve(bufnum, 1);
 	draw_curve(channel_colour[bufnum], 0, (sample_buf_meta[bufnum].measurements_valid != 0));
 
-}
+}*/

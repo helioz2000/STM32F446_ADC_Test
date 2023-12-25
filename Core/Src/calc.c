@@ -317,17 +317,17 @@ void calc_assign_meter_values(uint8_t channel) {
 int calc_measurements(void) {
 	int i;
 	int64_t v_sq_acc = 0;		// accumulating the squared voltage values
-	int64_t i1_sq_acc = 0;		// accumulating the squared I1 values
-	double i1_va_acc = 0;
-	double i1_w_acc = 0;			// accumulating I1 values where I > 0 (for W calculation)
+	int64_t i1_sq_acc=0, i2_sq_acc=0, i3_sq_acc=0;		// accumulator for squared I values
+	double i1_va_acc=0, i2_va_acc=0, i3_va_acc=0;		// accumulator for squared VA values
+	double i1_w_acc=0, i2_w_acc=0, i3_w_acc=0;			// accumulating I values where I > 0 (for W calculation)
 	uint16_t num_readings = 0;		// number of squared readings for v, i and va
 	int16_t v_reading;			// always positive, we are using the positive half wave
-	int16_t i_reading;			// could be negative if current is leading or lagging
+	int16_t i1_reading, i2_reading, i3_reading;			// could be negative if current is leading or lagging
 	double va_instant;			// instant VA value
 	uint16_t v_zero;
 	uint16_t v_pp;				// Voltage channel Peak-Peak
-	uint16_t i1_zero;
-	uint16_t i1_pp;			// Current channel P-P
+	uint16_t i1_zero, i2_zero, i3_zero;
+	uint16_t i1_pp, i2_pp, i3_pp;			// Current channel P-P
 	float w=0, va=0;
 
 	// no zero crossing?
@@ -349,7 +349,11 @@ int calc_measurements(void) {
 	v_pp = sample_buf_meta[ADC_CH_V].max - sample_buf_meta[ADC_CH_V].min;
 	v_zero = v_pp / 2 + sample_buf_meta[ADC_CH_V].min;
 	i1_pp = sample_buf_meta[ADC_CH_I1].max - sample_buf_meta[ADC_CH_I1].min;
+	i2_pp = sample_buf_meta[ADC_CH_I2].max - sample_buf_meta[ADC_CH_I2].min;
+	i3_pp = sample_buf_meta[ADC_CH_I3].max - sample_buf_meta[ADC_CH_I3].min;
 	i1_zero = i1_pp / 2 + sample_buf_meta[ADC_CH_I1].min;
+	i2_zero = i2_pp / 2 + sample_buf_meta[ADC_CH_I2].min;
+	i3_zero = i3_pp / 2 + sample_buf_meta[ADC_CH_I3].min;
 
 	// Calculate values using the positive half of the sine wave
 
@@ -360,79 +364,125 @@ int calc_measurements(void) {
 		for (i=sample_buf_meta[ADC_CH_V].zero_cross_pos; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
 			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
 			v_sq_acc += v_reading * v_reading;
-			i_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
-			i1_sq_acc += i_reading * i_reading;
+			i1_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
+			i1_sq_acc += i1_reading * i1_reading;
+			i2_reading = sample_buf[ADC_CH_I2][i] - i2_zero;
+			i2_sq_acc += i2_reading * i2_reading;
+			i3_reading = sample_buf[ADC_CH_I3][i] - i3_zero;
+			i3_sq_acc += i3_reading * i3_reading;
 			num_readings++;
-			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i_reading);
-			if (i_reading >= 0) {
-				i1_va_acc += va_instant;
-			} else {
-				i1_w_acc += abs(va_instant);
-			}
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i1_reading);
+			if (i1_reading >= 0) { i1_va_acc += va_instant; }
+			else { i1_w_acc += abs(va_instant); }
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i2_reading);
+			if (i2_reading >= 0) { i2_va_acc += va_instant;}
+			else { i2_w_acc += abs(va_instant); }
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i3_reading);
+			if (i3_reading >= 0) { i3_va_acc += va_instant;}
+			else { i3_w_acc += abs(va_instant); }
 		}
 	} else {	// negative crossing is first
 		// iterate from positive x-ing to the end of the buffer ....
 		for (i=sample_buf_meta[ADC_CH_V].zero_cross_pos; i<SAMPLE_BUF_SIZE; i++ ) {
 			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
 			v_sq_acc += v_reading * v_reading;
-			i_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
-			i1_sq_acc += i_reading * i_reading;
+			i1_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
+			i1_sq_acc += i1_reading * i1_reading;
+			i2_reading = sample_buf[ADC_CH_I2][i] - i2_zero;
+			i2_sq_acc += i2_reading * i2_reading;
+			i3_reading = sample_buf[ADC_CH_I3][i] - i3_zero;
+			i3_sq_acc += i3_reading * i3_reading;
 			num_readings++;
-			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i_reading);
-			if (i_reading >= 0) {
-				i1_va_acc += va_instant;
-			} else {
-				i1_w_acc += abs(va_instant);
-			}
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i1_reading);
+			if (i1_reading >= 0) { i1_va_acc += va_instant; }
+			else { i1_w_acc += abs(va_instant); }
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i2_reading);
+			if (i2_reading >= 0) { i2_va_acc += va_instant;}
+			else { i2_w_acc += abs(va_instant); }
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i3_reading);
+			if (i3_reading >= 0) { i3_va_acc += va_instant;}
+			else { i3_w_acc += abs(va_instant); }
 		}
 		// ..... the continue iterating from the start of the buffer to the negative crossing
 		for (i=SAMPLE_BUF_OVERLAP; i<sample_buf_meta[ADC_CH_V].zero_cross_neg; i++ ) {
 			v_reading = sample_buf[ADC_CH_V][i] - v_zero;
 			v_sq_acc += v_reading * v_reading;
-			i_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
-			i1_sq_acc += i_reading * i_reading;
+			i1_reading = sample_buf[ADC_CH_I1][i] - i1_zero;
+			i1_sq_acc += i1_reading * i1_reading;
+			i2_reading = sample_buf[ADC_CH_I2][i] - i2_zero;
+			i2_sq_acc += i2_reading * i2_reading;
+			i3_reading = sample_buf[ADC_CH_I3][i] - i3_zero;
+			i3_sq_acc += i3_reading * i3_reading;
 			num_readings++;
-			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i_reading);
-			if (i_reading >= 0) {
-				i1_va_acc += va_instant;
-			} else {
-				i1_w_acc += abs(va_instant);
-			}
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i1_reading);
+			if (i1_reading >= 0) { i1_va_acc += va_instant; }
+			else { i1_w_acc += abs(va_instant); }
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i2_reading);
+			if (i2_reading >= 0) { i2_va_acc += va_instant;}
+			else { i2_w_acc += abs(va_instant); }
+			va_instant = calc_adc_raw_to_V(v_reading) * calc_adc_raw_to_A(i3_reading);
+			if (i3_reading >= 0) { i3_va_acc += va_instant;}
+			else { i3_w_acc += abs(va_instant); }
 		}
 	}
 
 	// Calculate measured RMS voltage
 	v_measured = calc_adc_raw_to_V (sqrt((v_sq_acc / num_readings)));		// RMS voltage
 	//v_measured = calc_adc_raw_to_V(v_pp) / 2 * 0.707;		// only works for a perfect sine wave (no distortion)
+	sample_buf_meta[ADC_CH_V].measurements_valid = 1;
+	pf_measured[I1] = pf_measured[I2] = pf_measured[I3] = 1.0;		// assumed PF
 
-	pf_measured[I1] = 1.0;		// assumed PF
+	// Process I1 values
 	// do we have zero (below ADC noise) current reading?
 	if (sample_buf_meta[ADC_CH_I1].value_is_zero) {	// set all measured values to zero
-		i_measured[I1] = 0.0;
-		va_measured[I1] = 0.0;
-		w_measured[I1] = 0.0;
-
+		i_measured[I1] = 0.0; va_measured[I1] = 0.0;w_measured[I1] = 0.0;
 	} else {
 		i_measured[I1] = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
 		if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
 		if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
 		va_measured[I1] = v_measured * i_measured[I1];
-		if (w > 0) {
-			w_measured[I1] = va - w;
-		} else {
-			w_measured[I1] = va_measured[I1];
-		}
+		if (w > 0) {w_measured[I1] = va - w;}
+		else {w_measured[I1] = va_measured[I1];}
 		if (w_measured[I1] > va_measured[I1]) w_measured[I1] = va_measured[I1];		// W must be =< than VA
-		if (i_measured[I1] >= I1_MIN_PF) {			// Calculate PF if we have sufficient current
-			pf_measured[I1] = w_measured[I1] / va_measured[I1];
-		}
-		sample_buf_meta[ADC_CH_V].measurements_valid = 1;
+		if (i_measured[I1] >= I1_MIN_PF) {pf_measured[I1] = w_measured[I1] / va_measured[I1]; }		// Calculate PF if we have sufficient current
 		sample_buf_meta[ADC_CH_I1].measurements_valid = 1;
+	}
+
+	// Process I2 values
+	if (sample_buf_meta[ADC_CH_I2].value_is_zero) {	// set all measured values to zero
+		i_measured[I2] = 0.0;va_measured[I2] = 0.0;w_measured[I2] = 0.0;
+	} else {
+		i_measured[I2] = calc_adc_raw_to_A (sqrt((i2_sq_acc / num_readings)));	// RMS current
+		if (i2_va_acc > 0) { va = i2_va_acc / num_readings; }
+		if (i2_w_acc > 0) { w = i2_w_acc / num_readings; }
+		va_measured[I2] = v_measured * i_measured[I2];
+		if (w > 0) {w_measured[I2] = va - w;}
+		else {w_measured[I2] = va_measured[I2];}
+		if (w_measured[I2] > va_measured[I2]) w_measured[I2] = va_measured[I2];		// W must be =< than VA
+		if (i_measured[I2] >= I2_MIN_PF) {pf_measured[I2] = w_measured[I2] / va_measured[I2];}	// Calculate PF if we have sufficient current
+		sample_buf_meta[ADC_CH_I2].measurements_valid = 1;
+	}
+
+	// Process I3 values
+	if (sample_buf_meta[ADC_CH_I3].value_is_zero) {	// set all measured values to zero
+		i_measured[I3] = 0.0; va_measured[I3] = 0.0;w_measured[I3] = 0.0;
+	} else {
+		i_measured[I3] = calc_adc_raw_to_A (sqrt((i3_sq_acc / num_readings)));	// RMS current
+		if (i3_va_acc > 0) { va = i3_va_acc / num_readings; }
+		if (i3_w_acc > 0) { w = i3_w_acc / num_readings; }
+		va_measured[I3] = v_measured * i_measured[I3];
+		if (w > 0) { w_measured[I3] = va - w; }
+		else { w_measured[I3] = va_measured[I3]; }
+		if (w_measured[I3] > va_measured[I3]) w_measured[I3] = va_measured[I3];		// W must be =< than VA
+		if (i_measured[I3] >= I3_MIN_PF) { pf_measured[I3] = w_measured[I3] / va_measured[I3]; }	// Calculate PF if we have sufficient current
+		sample_buf_meta[ADC_CH_I3].measurements_valid = 1;
 	}
 
 	// add measurements to filter
 	calc_filter_add_v(v_measured);
 	calc_filter_add_i(I1, i_measured[I1], va_measured[I1], w_measured[I1], pf_measured[I1]);
+	calc_filter_add_i(I2, i_measured[I2], va_measured[I2], w_measured[I2], pf_measured[I2]);
+	calc_filter_add_i(I3, i_measured[I3], va_measured[I3], w_measured[I3], pf_measured[I3]);
 	calc_assign_meter_values(display_channel);
 
 	return 0;

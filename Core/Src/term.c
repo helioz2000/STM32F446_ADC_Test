@@ -21,6 +21,7 @@ extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer f
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
 extern struct sampleBufMeta sample_buf_meta[];
 extern float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue_pf;
+extern uint8_t display_channel;
 
 #define TERM_BUF_SIZE 1024
 uint8_t term_buf[TERM_BUF_SIZE];
@@ -78,13 +79,15 @@ void term_show_buffer(uint8_t bufnum) {
 }
 
 void term_show_measurements() {
+	/*
 	if (sample_buf_meta[ADC_CH_V].measurements_valid != 1) {
 		if (calc_measurements() != 0) {
 			term_print(" invalid readings\r\n");
 			return;
 		}
 	}
-	term_print("%.1fV %.1fA %.1fVA %.1fW PF=%.2f (%.1fDeg)\r\n", metervalue_v, metervalue_i, metervalue_va,
+	*/
+	term_print("%.1fV I%d: %.1fA %.1fVA %.1fW PF=%.2f (%.1fDeg)\r\n", metervalue_v, display_channel+1, metervalue_i, metervalue_va,
 			metervalue_w, metervalue_pf, acos(metervalue_pf) * (180.0 / 3.14159265) );
 }
 

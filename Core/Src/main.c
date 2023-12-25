@@ -437,6 +437,7 @@ int main(void)
 				display_screen = 1;
 			}
 			display_change = 0;
+			display_off_ticks = HAL_GetTick() + DISPLAY_TIMEOUT;	// restart screen saver
 		}
 
 		// display timeout

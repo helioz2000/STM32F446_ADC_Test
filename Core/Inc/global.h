@@ -26,20 +26,20 @@ struct sampleBufMeta {
 //#define I2_IN_USE
 //#define I3_IN_USE
 
-#define NUM_I_SENSORS 1
-#define I1 0		// index for measurements
+#define NUM_I_SENSORS 3
+#define I1 0		// index for I measurements
 #define I2 1
 #define I3 2
 
+/*
 #ifdef I2_IN_USE
 #define NUM_I_SENSORS 2
-
 #elif I3_IN_USE
 #define NUM_I_SENSORS 3
 #endif
+*/
 
-
-#define MEASUREMENT_INTERVAL 200	// [ms] calculate measurements from curves and add them to the filter
+#define MEASUREMENT_INTERVAL 100	// [ms] calculate measurements from curves and add them to the filter
 
 // WiFi module (ESP-01) definitions
 //#define USE_WIFI		// comment out to disable WiFi code
@@ -82,8 +82,9 @@ struct sampleBufMeta {
 #define ADC_V_MV_PER_BIT
 #define ADC_I1_MA_PER_BIT
 
-#define I1_MIN_PF 1.0		// minimum current required for PF calculation
-
+#define I1_MIN_PF 1.0		// [A] minimum current required for PF calculation
+#define I2_MIN_PF 1.0		// [A] minimum current required for PF calculation
+#define I3_MIN_PF 1.0		// [A] minimum current required for PF calculation
 
 /*
  * DMA buffer description
