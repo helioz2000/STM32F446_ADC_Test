@@ -16,13 +16,19 @@
 #include "calc.h"
 #include "term.h"
 #include "display.h"
+#include "fonts.h"
 
 extern uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for 4 channels of downsampled data
 extern struct sampleBufMeta sample_buf_meta[];
 extern char product_msg[];
 extern char copyright_msg[];
-extern float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue_pf;
+//extern float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue_pf;
+extern float v_filtered, i_filtered[], va_filtered[], w_filtered[], pf_filtered[];
+#ifdef DEBUG
+extern uint32_t calc_ticks, display_ticks;	// execution time measurement
+#endif
+
 extern uint8_t meter_readings_invalid;
 
 uint8_t display_channel = 0;		// active display channel I1, I2, I3
@@ -88,19 +94,19 @@ void display_channel_detail() {
 	uint16_t font_col = channel_colour[display_channel+1];
 	if (!meter_readings_invalid) {
 		// V
-		snprintf(str,sizeof(str),"%3.0f", metervalue_v);
-		Displ_WString(9, 7, str , Font30, 1, GREEN, BLACK);
+		snprintf(str,sizeof(str),"%3.0f", v_filtered);
+		Displ_WString(9, 7, str , Font30, 1, channel_colour[0], BLACK);
 		// I
-		snprintf(str,sizeof(str),"%4.1f", metervalue_i);
+		snprintf(str,sizeof(str),"%4.1f", i_filtered[display_channel]);
 		Displ_WString(120, 7, str , Font30, 1, font_col, BLACK);
 		// VA
-		snprintf(str,sizeof(str),"%7.1f", metervalue_va );
+		snprintf(str,sizeof(str),"%7.1f", va_filtered[display_channel] );
 		Displ_WString(9, 48, str , Font30, 1,  font_col, BLACK);
 		// W
-		snprintf(str,sizeof(str),"%7.1f", metervalue_w );
+		snprintf(str,sizeof(str),"%7.1f", w_filtered[display_channel] );
 		Displ_WString(9, 89, str , Font30, 1,  font_col, BLACK);
 		// PF
-		snprintf(str,sizeof(str),"%4.2f", fabs(metervalue_pf) );
+		snprintf(str,sizeof(str),"%4.2f", fabs(pf_filtered[display_channel]) );
 		Displ_WString(9, 130, str , Font30, 1,  font_col, BLACK);
 
 		// Angle
@@ -127,8 +133,93 @@ void display_channel_detail() {
 
 }
 
-void display_usage() {
+/*
+ * @brief      Display "Usage" page
+ * @para mask  1=display Usage mask, 0=display values
+ */
+void display_usage(uint8_t mask) {
+	int font_col = channel_colour[0];
+	int ypos = 10;
+	int xpos = 20;
+	int line_space = -2;
+	int section_space = 5;
+	sFONT font = Font24;
 
+	// Create page mask
+	if (mask != 0) {
+		xpos += 8*font.Width;
+		Displ_WString(xpos, ypos, "V", font, 1,  font_col, BLACK);
+		ypos += section_space+line_space + font.Height;
+
+		for (int i=I1; i<=I3; i++) {
+			font_col = channel_colour[i+1];
+			Displ_WString(xpos , ypos, "A" , font, 1,  font_col, BLACK);
+			ypos += line_space + font.Height;
+			Displ_WString(xpos, ypos, "VA" , font, 1,  font_col, BLACK);
+			ypos += line_space + font.Height;
+			Displ_WString(xpos, ypos, "W" , font, 1,  font_col, BLACK);
+			ypos += line_space + font.Height;
+			Displ_WString(xpos, ypos, "PF" , font, 1,  font_col, BLACK);
+			ypos += section_space+line_space + font.Height;
+		}
+		return;
+	}
+
+	snprintf(str,sizeof(str),"%3.0f", v_filtered);
+	Displ_WString(xpos+4*font.Width, ypos, str , font, 1,  font_col, BLACK);
+	ypos += section_space+line_space + font.Height;
+
+	font_col = channel_colour[I1+1];
+	snprintf(str,sizeof(str),"%4.1f", i_filtered[I1]);
+	Displ_WString(xpos+3*font.Width , ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%7.1f", va_filtered[I1]);
+	Displ_WString(xpos, ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%7.1f", w_filtered[I1]);
+	Displ_WString(xpos, ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%4.2f", fabs(pf_filtered[I1]) );
+	Displ_WString(xpos+3*font.Width, ypos, str , font, 1,  font_col, BLACK);
+	ypos += section_space+line_space + font.Height;
+
+	font_col = channel_colour[I2+1];
+	snprintf(str,sizeof(str),"%4.1f", i_filtered[I2]);
+	Displ_WString(xpos+3*font.Width, ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%7.1f", va_filtered[I2]);
+	Displ_WString(xpos, ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%7.1f", w_filtered[I2]);
+	Displ_WString(xpos, ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%4.2f", fabs(pf_filtered[I2]) );
+	Displ_WString(xpos+3*font.Width, ypos, str , font, 1,  font_col, BLACK);
+	ypos += section_space+line_space + font.Height;
+
+	font_col = channel_colour[I3+1];
+	snprintf(str,sizeof(str),"%4.1f", i_filtered[I3]);
+	Displ_WString(xpos+3*font.Width, ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%7.1f", va_filtered[I3]);
+	Displ_WString(xpos, ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%7.1f", w_filtered[I3]);
+	Displ_WString(xpos, ypos, str , font, 1,  font_col, BLACK);
+	ypos += line_space + font.Height;
+	snprintf(str,sizeof(str),"%4.2f", fabs(pf_filtered[I3]) );
+	Displ_WString(xpos+3*font.Width, ypos, str , font, 1,  font_col, BLACK);
+	//ypos += section_space+line_space + font.Height;
+
+
+}
+
+void display_debug() {
+	int font_col = WHITE;
+#ifdef DEBUG
+	snprintf(str,sizeof(str),"Calc: %lums", calc_ticks);
+	Displ_WString(20, 20, str , Font24, 1,  font_col, BLACK);
+#endif
 }
 
 void display_update_meter(uint8_t screen) {
@@ -137,23 +228,26 @@ void display_update_meter(uint8_t screen) {
 	if (screen != last_screen) {
 		switch(screen) {
 		case 1:
-			meter_readings_invalid = 1;
+			//meter_readings_invalid = 1;
 			display_channel = I1;
 			display_meter_mask();
 			break;
 		case 2:
-			meter_readings_invalid = 1;
+			//meter_readings_invalid = 1;
 			display_channel = I2;
 			display_meter_mask();
 			break;
 		case 3:
-			meter_readings_invalid = 1;
+			//meter_readings_invalid = 1;
 			display_channel = I3;
 			display_meter_mask();
 			break;
 		case 4:
 			Displ_CLS(BLACK);
-			Displ_WString(20, 20, "Usage" , Font24, 1, WHITE, BLACK);
+			display_usage(1);
+			break;
+		case 5:
+			Displ_CLS(BLACK);
 			break;
 		}
 		last_screen = screen;
@@ -167,9 +261,11 @@ void display_update_meter(uint8_t screen) {
 		display_channel_detail();
 		break;
 	case 4:
-		display_usage();
+		display_usage(0);
 		break;
-
+	case 5:
+		display_debug();
+		break;
 	}
 }
 

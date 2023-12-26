@@ -111,8 +111,6 @@ __IO uint16_t adc_dma_buf[ADC_NUM][ADC_DMA_BUF_SIZE];		// one DMA buffer for eac
 uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];		// buffer for 4 channels of downsampled data
 
-float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue_pf;
-
 uint32_t display_off_ticks;
 uint32_t touch_debounce_ticks;
 uint32_t display_splash_ticks;
@@ -120,8 +118,11 @@ uint32_t display_update_ticks;
 uint32_t now_ticks, last_ticks;
 uint32_t next_measurement_time;
 uint32_t next_process_time;
+#ifdef DEBUG
+uint32_t measure_ticks, calc_ticks, display_ticks;	// execution time measurement
+#endif
 #define PROCESS_INTERVAL 100;	// run slow process every n ms
-#define SCREEN_MAX 4
+#define SCREEN_MAX 5
 
 #define TOUCH_DEBOUNCE_TIME 500	// ticks
 
@@ -343,13 +344,27 @@ int main(void)
 	}
 	last_ticks = now_ticks;		// store for compare in next iteration
 
-	// perform measurements
+	// perform measurements and update the display
 	if ( now_ticks >= next_measurement_time ) {
 		next_measurement_time += MEASUREMENT_INTERVAL;
+#ifdef DEBUG
+		measure_ticks = HAL_GetTick();
+#endif
 		calc_measurements();
+#ifdef DEBUG
+		calc_ticks = HAL_GetTick() - measure_ticks;		// calculation execution time
+#endif
+
 #ifdef USE_DISPLAY
+		// update meter display, only if display is visible ( backlight on )
 		if ((HAL_GPIO_ReadPin(DISPL_LED_GPIO_Port, DISPL_LED_Pin) == GPIO_PIN_SET) && (display_screen)) {
+#ifdef DEBUG
+			measure_ticks = HAL_GetTick();
+#endif
 			display_update_meter(display_screen);
+#ifdef DEBUG
+			display_ticks = HAL_GetTick() - measure_ticks;		// display update execution time
+#endif
 		}
 #endif
 	}

@@ -20,7 +20,7 @@ extern UART_HandleTypeDef huart2;
 extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
 extern struct sampleBufMeta sample_buf_meta[];
-extern float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue_pf;
+extern float v_filtered, i_filtered[], va_filtered[], w_filtered[], pf_filtered[];
 extern uint8_t display_channel;
 
 #define TERM_BUF_SIZE 1024
@@ -87,8 +87,9 @@ void term_show_measurements() {
 		}
 	}
 	*/
-	term_print("%.1fV I%d: %.1fA %.1fVA %.1fW PF=%.2f (%.1fDeg)\r\n", metervalue_v, display_channel+1, metervalue_i, metervalue_va,
-			metervalue_w, metervalue_pf, acos(metervalue_pf) * (180.0 / 3.14159265) );
+	term_print("%.1fV \r\nI%d: %.1fA %.1fVA %.1fW PF=%.2f (%.1fDeg)\r\n", v_filtered, I1+1, i_filtered[I1], va_filtered[I1], w_filtered[I1], pf_filtered[I1], acos(pf_filtered[I1]) * (180.0 / 3.14159265) );
+	term_print("I%d: %.1fA %.1fVA %.1fW PF=%.2f (%.1fDeg)\r\n", I2+1, i_filtered[I2], va_filtered[I2], w_filtered[I2], pf_filtered[I2], acos(pf_filtered[I2]) * (180.0 / 3.14159265) );
+	term_print("I%d: %.1fA %.1fVA %.1fW PF=%.2f (%.1fDeg)\r\n", I3+1, i_filtered[I3], va_filtered[I3], w_filtered[I3], pf_filtered[I3], acos(pf_filtered[I3]) * (180.0 / 3.14159265) );
 }
 
 void term_show_channel(uint8_t bufnum) {

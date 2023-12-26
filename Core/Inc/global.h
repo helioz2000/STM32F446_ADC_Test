@@ -51,12 +51,12 @@ struct sampleBufMeta {
 #define DISPLAY_UPDATE_TIME 350	// [ms] meter display update time
 #define SPLASH_SCREEN_TIME 1500	// [ms] time to display splash screen
 
-#define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading
+#define ADC_FS_RAW 4095		// full scale 12 bit ADC raw reading	(0.806mV / count)
 #define ADC_FS_MV 3300		// millivolt at full scale
 #define ADC_FS_CH_V	781		// P-P V at full scale (760V P-P = 380 * 0.707 = 268V RMS)
 #define ADC_FS_CH_I 226		// P-P A at full scale (200A P-P = 100 * 0.707 = 70A RMS)
-#define ADC_CENTER_RAW 1861	// centre of signal (1500mV = 1861, 1650mV = 2047)
-#define ADC_NOISE_RAW 20	// readings below this level are considered to be noise are are replaced with zero
+#define ADC_CENTER_RAW 1861	// [ADC] centre of signal (1500mV = 1861, 1650mV = 2047)
+#define ADC_NOISE_RAW 30	// [ADC] readings below this level are considered to be noise and are replaced with zero (30=25mV)
 
 #define ADC_NUM 2		// number of ADCs in use
 #define ADC1_IDX 0			// ADC1 index for arrays
@@ -82,6 +82,9 @@ struct sampleBufMeta {
 #define ADC_V_MV_PER_BIT
 #define ADC_I1_MA_PER_BIT
 
+#define I1_MIN 0.3			// [A] minimum current, reading will be zero below that
+#define I2_MIN 0.3			// [A] minimum current, reading will be zero below that
+#define I3_MIN 0.3			// [A] minimum current, reading will be zero below that
 #define I1_MIN_PF 1.0		// [A] minimum current required for PF calculation
 #define I2_MIN_PF 1.0		// [A] minimum current required for PF calculation
 #define I3_MIN_PF 1.0		// [A] minimum current required for PF calculation

@@ -3,5 +3,5 @@
 ../Core/Src/term.c:47:6:term_print_hex	4
 ../Core/Src/term.c:62:6:term_show_buffer	4
 ../Core/Src/term.c:81:6:term_show_measurements	1
-../Core/Src/term.c:94:6:term_show_channel	3
-../Core/Src/term.c:115:6:term_csv_buffer	3
+../Core/Src/term.c:95:6:term_show_channel	3
+../Core/Src/term.c:116:6:term_csv_buffer	3

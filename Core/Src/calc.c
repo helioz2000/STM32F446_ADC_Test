@@ -292,7 +292,7 @@ void calc_filter_add_i(uint8_t channel, float new_i_value, float new_va_value, f
 /*
  * @brief   Assign filtered values to meter values
  */
-void calc_assign_meter_values(uint8_t channel) {
+/*void calc_assign_meter_values(uint8_t channel) {
 	// assign filtered valued
 	if (channel >= NUM_I_SENSORS) {
 		metervalue_v = 0.0;
@@ -308,7 +308,7 @@ void calc_assign_meter_values(uint8_t channel) {
 	metervalue_va = va_filtered[channel];
 	metervalue_w = w_filtered[channel];
 	metervalue_pf = pf_filtered[channel];
-}
+}*/
 
 /*
  * Calculate all measurements
@@ -437,45 +437,63 @@ int calc_measurements(void) {
 	if (sample_buf_meta[ADC_CH_I1].value_is_zero) {	// set all measured values to zero
 		i_measured[I1] = 0.0; va_measured[I1] = 0.0;w_measured[I1] = 0.0;
 	} else {
+		//term_print("%s() - I1 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I1], sample_buf_meta[ADC_CH_I1].min, sample_buf_meta[ADC_CH_I1].max);
 		i_measured[I1] = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
-		if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
-		if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
-		va_measured[I1] = v_measured * i_measured[I1];
-		if (w > 0) {w_measured[I1] = va - w;}
-		else {w_measured[I1] = va_measured[I1];}
-		if (w_measured[I1] > va_measured[I1]) w_measured[I1] = va_measured[I1];		// W must be =< than VA
-		if (i_measured[I1] >= I1_MIN_PF) {pf_measured[I1] = w_measured[I1] / va_measured[I1]; }		// Calculate PF if we have sufficient current
-		sample_buf_meta[ADC_CH_I1].measurements_valid = 1;
+		if (i_measured[I1] >= I1_MIN) {		// Reading above min current?
+			if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
+			if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
+			va_measured[I1] = v_measured * i_measured[I1];
+			if (w > 0) { w_measured[I1] = va - w;}
+			else { w_measured[I1] = va_measured[I1];}
+			if (w_measured[I1] > va_measured[I1]) w_measured[I1] = va_measured[I1];		// W must be =< than VA
+			if (i_measured[I1] >= I1_MIN_PF) { pf_measured[I1] = w_measured[I1] / va_measured[I1]; }		// Calculate PF if we have sufficient current
+			sample_buf_meta[ADC_CH_I1].measurements_valid = 1;
+		} else {
+			//term_print("%s() - I1 = %fA below minimum\r\n", __FUNCTION__, i_measured[I1]);
+			i_measured[I1] = 0.0; va_measured[I1] = 0.0;w_measured[I1] = 0.0;
+		}
 	}
 
 	// Process I2 values
 	if (sample_buf_meta[ADC_CH_I2].value_is_zero) {	// set all measured values to zero
-		i_measured[I2] = 0.0;va_measured[I2] = 0.0;w_measured[I2] = 0.0;
+		i_measured[I2] = 0.0;va_measured[I2] = 0.0; w_measured[I2] = 0.0;
 	} else {
+		//term_print("%s() - I2 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I2], sample_buf_meta[ADC_CH_I2].min, sample_buf_meta[ADC_CH_I2].max);
 		i_measured[I2] = calc_adc_raw_to_A (sqrt((i2_sq_acc / num_readings)));	// RMS current
-		if (i2_va_acc > 0) { va = i2_va_acc / num_readings; }
-		if (i2_w_acc > 0) { w = i2_w_acc / num_readings; }
-		va_measured[I2] = v_measured * i_measured[I2];
-		if (w > 0) {w_measured[I2] = va - w;}
-		else {w_measured[I2] = va_measured[I2];}
-		if (w_measured[I2] > va_measured[I2]) w_measured[I2] = va_measured[I2];		// W must be =< than VA
-		if (i_measured[I2] >= I2_MIN_PF) {pf_measured[I2] = w_measured[I2] / va_measured[I2];}	// Calculate PF if we have sufficient current
-		sample_buf_meta[ADC_CH_I2].measurements_valid = 1;
+		if (i_measured[I2] >= I2_MIN) {		// Reading above min current?
+			if (i2_va_acc > 0) { va = i2_va_acc / num_readings; }
+			if (i2_w_acc > 0) { w = i2_w_acc / num_readings; }
+			va_measured[I2] = v_measured * i_measured[I2];
+			if (w > 0) { w_measured[I2] = va - w;}
+			else { w_measured[I2] = va_measured[I2];}
+			if (w_measured[I2] > va_measured[I2]) w_measured[I2] = va_measured[I2];		// W must be =< than VA
+			if (i_measured[I2] >= I2_MIN_PF) {pf_measured[I2] = w_measured[I2] / va_measured[I2];}	// Calculate PF if we have sufficient current
+			sample_buf_meta[ADC_CH_I2].measurements_valid = 1;
+		} else {
+			//term_print("%s() - I2 = %fA below minimum\r\n", __FUNCTION__, i_measured[I2]);
+			i_measured[I2] = 0.0;va_measured[I2] = 0.0; w_measured[I2] = 0.0;
+		}
 	}
 
 	// Process I3 values
 	if (sample_buf_meta[ADC_CH_I3].value_is_zero) {	// set all measured values to zero
-		i_measured[I3] = 0.0; va_measured[I3] = 0.0;w_measured[I3] = 0.0;
+		i_measured[I3] = 0.0; va_measured[I3] = 0.0; w_measured[I3] = 0.0;
 	} else {
+		//term_print("%s() - I3 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I3], sample_buf_meta[ADC_CH_I3].min, sample_buf_meta[ADC_CH_I3].max);
 		i_measured[I3] = calc_adc_raw_to_A (sqrt((i3_sq_acc / num_readings)));	// RMS current
-		if (i3_va_acc > 0) { va = i3_va_acc / num_readings; }
-		if (i3_w_acc > 0) { w = i3_w_acc / num_readings; }
-		va_measured[I3] = v_measured * i_measured[I3];
-		if (w > 0) { w_measured[I3] = va - w; }
-		else { w_measured[I3] = va_measured[I3]; }
-		if (w_measured[I3] > va_measured[I3]) w_measured[I3] = va_measured[I3];		// W must be =< than VA
-		if (i_measured[I3] >= I3_MIN_PF) { pf_measured[I3] = w_measured[I3] / va_measured[I3]; }	// Calculate PF if we have sufficient current
-		sample_buf_meta[ADC_CH_I3].measurements_valid = 1;
+		if (i_measured[I3] >= I3_MIN) {		// Reading above min current?
+			if (i3_va_acc > 0) { va = i3_va_acc / num_readings; }
+			if (i3_w_acc > 0) { w = i3_w_acc / num_readings; }
+			va_measured[I3] = v_measured * i_measured[I3];
+			if (w > 0) { w_measured[I3] = va - w; }
+			else { w_measured[I3] = va_measured[I3]; }
+			if (w_measured[I3] > va_measured[I3]) w_measured[I3] = va_measured[I3];		// W must be =< than VA
+			if (i_measured[I3] >= I3_MIN_PF) { pf_measured[I3] = w_measured[I3] / va_measured[I3]; }	// Calculate PF if we have sufficient current
+			sample_buf_meta[ADC_CH_I3].measurements_valid = 1;
+		} else {
+			//term_print("%s() - I3 = %fA below minimum\r\n", __FUNCTION__, i_measured[I3]);
+			i_measured[I3] = 0.0; va_measured[I3] = 0.0; w_measured[I3] = 0.0;
+		}
 	}
 
 	// add measurements to filter
@@ -483,7 +501,7 @@ int calc_measurements(void) {
 	calc_filter_add_i(I1, i_measured[I1], va_measured[I1], w_measured[I1], pf_measured[I1]);
 	calc_filter_add_i(I2, i_measured[I2], va_measured[I2], w_measured[I2], pf_measured[I2]);
 	calc_filter_add_i(I3, i_measured[I3], va_measured[I3], w_measured[I3], pf_measured[I3]);
-	calc_assign_meter_values(display_channel);
+	//calc_assign_meter_values(display_channel);
 
 	return 0;
 }
