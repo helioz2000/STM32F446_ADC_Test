@@ -1,7 +1,0 @@
-../Core/Src/term.c:29:5:term_init	4	static
-../Core/Src/term.c:33:19:term_print	16	static
-../Core/Src/term.c:47:6:term_print_hex	32	static
-../Core/Src/term.c:62:6:term_show_buffer	32	static
-../Core/Src/term.c:81:6:term_show_measurements	96	static
-../Core/Src/term.c:95:6:term_show_channel	32	static
-../Core/Src/term.c:116:6:term_csv_buffer	24	static

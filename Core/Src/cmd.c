@@ -27,6 +27,8 @@ extern uint16_t new_time_period;
 extern uint16_t new_energy_time_period;
 extern uint8_t modbus_addr_change;
 
+extern double total_precision_vah[];
+extern double total_precision_wh[];
 extern uint32_t total_vah[];
 extern uint32_t total_wh[];
 
@@ -89,8 +91,8 @@ int cmd_led(int cmd) {
 
 int cmd_g() {
 	for (int i=0; i<NUM_I_SENSORS; i++) {
-		term_print("VAh[%d] = %u [1/10 VAh]\r\n", i, total_vah[i]);
-		term_print(" Wh[%d] = %u [1/10 Wh]\r\n", i, total_wh[i]);
+		term_print("VAh[%d] = %u [1/10 VAh] %.2f\r\n", i, total_vah[i], total_precision_vah[i]);
+		term_print(" Wh[%d] = %u [1/10 Wh] %.2f\r\n", i, total_wh[i],  total_precision_wh[i]);
 	}
 	return 0;
 }
@@ -110,7 +112,6 @@ int cmd_help(void) {
 	term_print("T[0|1]: TFT display OFF / ON\r\n");
 	term_print("Y: Reset all energy totals (VA, W) to zero\r\n");
 	term_print("Z[500..1500]: adjust energy integration timer (200ms) [EEPROM]\r\n");
-
 	return 0;
 }
 

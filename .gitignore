@@ -1,3 +1,6 @@
 .metadata/
 .settings/language.settings.xml
-
+*.o
+*.su
+*.cyclo
+*.elf

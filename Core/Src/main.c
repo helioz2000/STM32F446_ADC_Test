@@ -130,9 +130,13 @@ uint32_t next_measurement_time;
 uint32_t next_process_time;
 
 // Storage for Energy totals, one per channel.
-// Format: 1/10 VAh/Wh (one implied decimal point)
+// For precise storage
+double total_precision_vah[3];
+double total_precision_wh[3];
+// For EEPROM storage, format: 1/10 VAh/Wh (one implied decimal point)
 uint32_t total_vah[3];
 uint32_t total_wh[3];
+
 
 #ifdef DEBUG
 uint32_t measure_ticks, calc_ticks, display_ticks;	// execution time measurement
@@ -293,11 +297,18 @@ int energy_totals_init(uint8_t reset) {
 	// move values into variables
 	memcpy(&total_vah[0], (uint8_t*) &eeprom_buf, 12);
 
+
 	// read Wh from eeprom
 	HAL_Delay(EEPROM_DELAY);
 	if (ee24_read(EEPROM_ADDR_WH, (uint8_t*) &eeprom_buf, 12, 100) == true) {
 		//term_print_hex((uint8_t*) &eeprom_buf, 12, 0);
 		memcpy(&total_wh[0], (uint8_t*) &eeprom_buf, 12);
+	}
+
+	// initialise precision values
+	for (i=0; i<3; i++) {
+		total_precision_vah[i] = (double) total_vah[i];
+		total_precision_wh[i] = (double) total_wh[i];
 	}
 	return 0;
 }

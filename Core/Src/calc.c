@@ -38,6 +38,8 @@ extern uint8_t display_channel;
 extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
 
+extern double total_precision_vah[];
+extern double total_precision_wh[];
 extern uint32_t total_vah[];
 extern uint32_t total_wh[];
 
@@ -60,16 +62,12 @@ double accumulator_vah[NUM_I_SENSORS] = { 0.0, 0.0, 0.0 };
 double accumulator_wh[NUM_I_SENSORS]  = { 0.0, 0.0, 0.0 };
 uint8_t accumulator_count = 0;
 
-//inline int16_t MAX(int16_t a, int16_t b) { return((a) > (b) ? a : b); }
-//inline int16_t MIN(int16_t a, int16_t b) { return((a) < (b) ? a : b); }
-
 /*
- * Process the DMA buffer and perform down-sample
- *
- * parameter second_half: > 0 to process 2nd half of buffer, 0 = 1st half of buffer
- * parameter adc_num: 0 = ADC1, 1 = ADC2 (use ADC1_IDX or ADC2_IDX)
- * returns: -1 on failure, 0 if OK
- * Split the interleaved channel readings from the DMA buffer into adc_raw_buf which is
+ * @brief   Process the DMA buffer and perform down-sample
+ * @para    second_half: > 0 to process 2nd half of buffer, 0 = 1st half of buffer
+ * @para    adc_num: 0 = ADC1, 1 = ADC2 (use ADC1_IDX or ADC2_IDX)
+ * @retval: -1 on failure, 0 if OK
+ * @note    Split the interleaved channel readings from the DMA buffer into adc_raw_buf which is
  * structured to hold the readings for one channel per array element.
  * This function also establishes the min/max values for each channel
  * Note: Each ADC is assigned one DMA buffer.
@@ -126,10 +124,10 @@ int calc_process_dma_buffer(int second_half, int adc_num) {
 }
 
 /*
- * Detect zero point crossings in a buffer and store index in buffer meta data
- * parameter bufnum: the sample buffer to examine
- * parameter zeropoint: the reading which represents the zero point
- * parameter window: zero point window height
+ * @brief           Detect zero point crossings in a buffer and store index in buffer meta data
+ * @para bufnum:    the sample buffer to examine
+ * @para zeropoint: the reading which represents the zero point
+ * @para window:    zero point window height
  * The challenge with zero crossing is noise contained in the recordings.
  * Whilst some of the noise has been reduced by down-sampling, we have to
  * account for residual noise in the data, hence the somewhat extensive
@@ -203,8 +201,8 @@ void calc_zero_detector(uint8_t bufnum, int zeropoint, int window) {
 }
 
 /*
- * Down-sample ADC raw readings into sample buffer
- * This function provides a filter for the raw ADC readings. It halves
+ * @brief   Down-sample ADC raw readings into sample buffer
+ * @note    This function provides a filter for the raw ADC readings. It halves
  * the number of samples and averages adjoining samples to smooth out peaks.
  * It also establishes the meta data (min/max and zero crossing, etc)
  */
@@ -240,7 +238,7 @@ void calc_downsample(uint8_t bufnum) {
 }
 
 /*
- * @brief  Add new value to voltage filter
+ * @brief          Add new value to voltage filter
  * @para newValue: The new value to add to the filter
  */
 void calc_filter_add_v(float newValue) {
@@ -257,7 +255,7 @@ void calc_filter_add_v(float newValue) {
 }
 
 /*
- * @brief  Add new values to current filters and calculate filtered values
+ * @brief              Add new values to current filters and calculate filtered values
  * @para channel:      Current channel I1=0, I2=1, I3=2
  * @para new_i_value:  The new current value to add to the filter
  * @para new_va_value: The new va value to add to the filter
@@ -316,8 +314,8 @@ void calc_filter_add_i(uint8_t channel, float new_i_value, float new_va_value, f
 }*/
 
 /*
- * Calculate all measurements
- * returns 0 if measurements are OK, -1 if zero crossing is not detected
+ * @brief   Calculate all measurements
+ * @retval  0 if measurements are OK, -1 if zero crossing is not detected
  */
 int calc_measurements(void) {
 	int i;
@@ -512,32 +510,35 @@ int calc_measurements(void) {
 }
 
 /*
- * @brief    Update the energy totals with the latest readings. Must be called every 100ms.
+ * @brief    Update the energy totals with the latest readings. To be called every 100ms.
  */
 void calc_update_energy_totals() {
-	double divisor = (double)36000.0;		// 3600000 / 100 to convert W to Wh per 100ms
+	const uint8_t acc_max = 50;		// * 100ms, must divide into 36000
+	const double divisor = 36000.0 / (double) acc_max;		// accumulator totals per hour
 
-	for (int i=0; i<NUM_I_SENSORS; i++) {
-		accumulator_vah[i] += (double)va_filtered[i] / divisor;
-		accumulator_wh[i] += (double)w_filtered[i] / divisor;
+	for (int i=0; i<NUM_I_SENSORS; i++) {	// every 100ms
+		accumulator_vah[i] += (double)va_filtered[i];
+		accumulator_wh[i] += (double)w_filtered[i];
 	}
 	accumulator_count++;
-	if (accumulator_count >= 10) {		// once a second
+	if (accumulator_count >= acc_max) {		// once a second
 		for (int i=0; i<NUM_I_SENSORS; i++) {
-			total_vah[i] += (uint32_t) round(accumulator_vah[i] * 10.0);
-			total_wh[i] += (uint32_t) round(accumulator_wh[i] * 10.0);
+			// update precision values
+			total_precision_vah[i] += accumulator_vah[i] / (double)accumulator_count / divisor;
+			total_precision_wh[i] += accumulator_wh[i] / (double)accumulator_count / divisor;
 			accumulator_vah[i] = 0.0;
 			accumulator_wh[i] = 0.0;
-
+			// update integer values
+			total_vah[i] = round(total_precision_vah[i] * 10);
+			total_wh[i] = round(total_precision_wh[i] * 10);
 		}
 		accumulator_count = 0;
 	}
-
 }
 
 /*
- * Calculate the measurements of single sample buffer
- * returns: 0 on success or -1 on failure
+ * @brief   Calculate the measurements of single sample buffer
+ * @retval  0 on success or -1 on failure
  * The RMS value is calculated from readings between the positive and negative zero crossing
  * that is, the positive half of the sine wave.
  * The RMS value is calculate by adding the square of each reading to an accumulator and then
@@ -579,29 +580,29 @@ void calc_update_energy_totals() {
 }*/
 
 /*
- * Convert ADC raw reading to mv
- * returns: mv as int
+ * @brief   Convert ADC raw reading to mv
+ * @retval  mv as int
  */
 int calc_adc_raw_to_mv_int(int16_t adc_raw) {
 	return round(calc_adc_raw_to_mv_float(adc_raw));
 }
 
 /*
- * Convert raw reading to mV
+ * @brief   Convert raw reading to mV
  */
 float calc_adc_raw_to_mv_float(int16_t adc_raw) {
 	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_MV;
 }
 
 /*
- * Convert ADC raw reading to V
+ * @brief   Convert ADC raw reading to V
  */
 float calc_adc_raw_to_V(int16_t adc_raw) {
 	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_CH_V;
 }
 
 /*
- * Convert ADC raw reading to A
+ * @brief   Convert ADC raw reading to A
  */
 float calc_adc_raw_to_A(int16_t adc_raw) {
 	return ((float)adc_raw / (float)ADC_FS_RAW) * (float)ADC_FS_CH_I;

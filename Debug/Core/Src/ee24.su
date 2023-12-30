@@ -1,7 +1,0 @@
-../Core/Src/ee24.c:24:6:ee24_isConnected	8	static
-../Core/Src/ee24.c:35:6:ee24_write_byte	32	static
-../Core/Src/ee24.c:55:6:ee24_write_word	32	static
-../Core/Src/ee24.c:76:6:ee24_write	48	static
-../Core/Src/ee24.c:100:6:ee24_read_byte	32	static
-../Core/Src/ee24.c:120:6:ee24_read_word	32	static
-../Core/Src/ee24.c:140:6:ee24_read	40	static
