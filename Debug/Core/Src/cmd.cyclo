@@ -1,7 +1,10 @@
-../Core/Src/cmd.c:30:6:cmd_error	1
-../Core/Src/cmd.c:34:5:cmd_t	7
-../Core/Src/cmd.c:53:5:cmd_p	2
-../Core/Src/cmd.c:61:5:cmd_led	2
-../Core/Src/cmd.c:71:5:cmd_help	1
-../Core/Src/cmd.c:85:5:cmd_process	12
-../Core/Src/cmd.c:143:5:CMD_Handler	2
+../Core/Src/cmd.c:35:6:cmd_error	1
+../Core/Src/cmd.c:39:5:cmd_t	3
+../Core/Src/cmd.c:55:5:cmd_z	2
+../Core/Src/cmd.c:64:5:cmd_p	2
+../Core/Src/cmd.c:73:5:cmd_a	2
+../Core/Src/cmd.c:81:5:cmd_led	2
+../Core/Src/cmd.c:90:5:cmd_g	2
+../Core/Src/cmd.c:98:5:cmd_help	1
+../Core/Src/cmd.c:117:5:cmd_process	16
+../Core/Src/cmd.c:192:5:CMD_Handler	2

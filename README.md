@@ -18,7 +18,9 @@ A custom PCB will be connected to the Nucleo development board. The PCB will hou
 - IN10 : PC0 : CN8-6 : CN7-38 : Arduino A5 I1
 - IN11 : PC1 : CN8-5 : CN7-36 : Arduino A4 I3
 
-#Timer usage
+#Timer 2 usage
+This timer triggers the ADC measurements. 
+
 - TIM2 - APB1 - 90MHz CLK = 11.11111ns / pulse
 - PSC 0 (No prescale)
 - ARR 2250 = 25us (theoretically)
@@ -27,6 +29,14 @@ A custom PCB will be connected to the Nucleo development board. The PCB will hou
 ADC measurement every 25us allows for 800 measurements per 20ms (one 50Hz cycle) providing a resolution better than 0.5 degrees of phase.
 
 To enable accurate analysis of each data set we look at **840** data samples covering **21ms**. Each data set will capture a full cycle at a mains frequency as low as  **47.62 Hz**. 
+
+#Timer 3 usage
+This timer is used to trigger energy (VAh & Wh) measurements by itegrating the VA and W readings over time and storing them in VAh and Wh variables.
+
+- TIM3 - APB1 - 90MHz CLK = 11.11111ns / pulse
+- PSC 9000 (100us)
+- ARR 1000 = (100ms)
+
 
 To produce a timer call once a second use the following settings:
 - PSC 9000 (100us)

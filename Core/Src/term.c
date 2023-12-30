@@ -49,7 +49,7 @@ void term_print_hex(uint8_t* buf, unsigned len, uint8_t per_line) {
 	if (per_line < 4) { per_line = 16; }
 	for (int i = 0; i < len; i++) {
 		term_print("%02X ", buf[i]);
-		if (++count > per_line) {
+		if (++count >= per_line) {
 			term_print("\r\n");
 			count = 0;
 		}

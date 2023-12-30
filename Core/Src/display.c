@@ -17,6 +17,9 @@
 #include "term.h"
 #include "display.h"
 #include "fonts.h"
+#ifdef USE_WIFI
+#include "wifi.h"
+#endif
 
 extern uint16_t adc_raw_buf[ADC_NUM_BUFFERS][ADC_NUM_DATA];		// buffer for 4 channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for 4 channels of downsampled data
@@ -25,6 +28,9 @@ extern char product_msg[];
 extern char copyright_msg[];
 //extern float metervalue_v, metervalue_i, metervalue_va, metervalue_w, metervalue_pf;
 extern float v_filtered, i_filtered[], va_filtered[], w_filtered[], pf_filtered[];
+#ifdef USE_WIFI
+extern char ip_addr_str[];
+#endif
 #ifdef DEBUG
 extern uint32_t calc_ticks, display_ticks;	// execution time measurement
 #endif
@@ -45,6 +51,7 @@ uint8_t last_screen = 0;
 const Displ_Orientat_e display_orientation = Displ_Orientat_180;
 uint16_t display_x, display_y;
 
+void display_meter_mask(uint8_t clear);
 
 void display_init() {
 	Displ_Init(display_orientation); // initialize the display and set the initial display orientation
@@ -151,7 +158,7 @@ void display_usage(uint8_t mask) {
 		Displ_WString(xpos, ypos, "V", font, 1,  font_col, BLACK);
 		ypos += section_space+line_space + font.Height;
 
-		for (int i=I1; i<=I3; i++) {
+		for (int i=0; i<NUM_I_SENSORS; i++) {
 			font_col = channel_colour[i+1];
 			Displ_WString(xpos , ypos, "A" , font, 1,  font_col, BLACK);
 			ypos += line_space + font.Height;
@@ -219,6 +226,9 @@ void display_debug() {
 #ifdef DEBUG
 	snprintf(str,sizeof(str),"Calc: %lums", calc_ticks);
 	Displ_WString(20, 20, str , Font24, 1,  font_col, BLACK);
+#ifdef USE_WIFI
+	Displ_WString(20, 40, ip_addr_str, Font20, 1, font_col, BLACK);
+#endif
 #endif
 }
 
@@ -230,17 +240,17 @@ void display_update_meter(uint8_t screen) {
 		case 1:
 			//meter_readings_invalid = 1;
 			display_channel = I1;
-			display_meter_mask();
+			display_meter_mask(1);
 			break;
 		case 2:
 			//meter_readings_invalid = 1;
 			display_channel = I2;
-			display_meter_mask();
+			display_meter_mask(0);
 			break;
 		case 3:
 			//meter_readings_invalid = 1;
 			display_channel = I3;
-			display_meter_mask();
+			display_meter_mask(0);
 			break;
 		case 4:
 			Displ_CLS(BLACK);
@@ -277,15 +287,16 @@ void display_update_mask(void) {
 }
 
 /*
- * Draw the screen mask for meter main screen
+ * @brief       Draw the screen mask for meter main screen
+ * @para clear  0 = do not clear display
  */
-void display_meter_mask() {
+void display_meter_mask(uint8_t clear) {
 	uint16_t ypos = 0;
 	uint16_t box_height = 40;
 	uint16_t border_col = GREEN;
 	uint16_t font_col = GREEN;
 	uint16_t back_col = BLACK;
-	Displ_CLS(back_col);
+	if (clear) Displ_CLS(back_col);
 	// V + A
 	Displ_Line(0,ypos,display_x-1,ypos, border_col);
 	Displ_Line(0,ypos,0,ypos+box_height, border_col);

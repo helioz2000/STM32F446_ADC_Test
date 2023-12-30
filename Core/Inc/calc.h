@@ -12,6 +12,7 @@ int calc_process_dma_buffer(int high, int adc_num);
 void calc_downsample(uint8_t bufnum);
 void calc_filter_measurements(void);
 int calc_measurements(void);
+void calc_update_energy_totals();
 int calc_adc_raw_to_mv_int(int16_t adc_raw);
 float calc_adc_raw_to_mv_float(int16_t adc_raw);
 float calc_adc_raw_to_V(int16_t adc_raw);

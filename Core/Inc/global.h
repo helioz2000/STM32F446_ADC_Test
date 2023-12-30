@@ -42,7 +42,7 @@ struct sampleBufMeta {
 #define MEASUREMENT_INTERVAL 100	// [ms] calculate measurements from curves and add them to the filter
 
 // WiFi module (ESP-01) definitions
-//#define USE_WIFI		// comment out to disable WiFi code
+#define USE_WIFI		// comment out to disable WiFi code
 
 
 // line below controls TFT display usage
@@ -74,8 +74,8 @@ struct sampleBufMeta {
 
 // identify buffers by signal source
 #define ADC_CH_V 0
-#define ADC_CH_I1 3
-#define ADC_CH_I2 2
+#define ADC_CH_I1 2
+#define ADC_CH_I2 3
 #define ADC_CH_I3 1
 
 // ADC scaling

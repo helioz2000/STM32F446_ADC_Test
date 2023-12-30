@@ -38,11 +38,14 @@ extern uint8_t display_channel;
 extern uint16_t adc_raw_buf[ADC_NUM*ADC_NUM_CHANNELS][ADC_NUM_DATA];	// buffer for channels of raw ADC data
 extern uint16_t sample_buf[ADC_NUM_BUFFERS][SAMPLE_BUF_SIZE];			// buffer for channels of down-sampled data
 
+extern uint32_t total_vah[];
+extern uint32_t total_wh[];
+
 struct sampleBufMeta sample_buf_meta[ADC_NUM_BUFFERS];					// store meta data for associated buffer
 
 uint8_t meter_readings_invalid = 0;
 
-#define FILTER_NUM 10
+#define FILTER_NUM 5
 float v_filter[FILTER_NUM]; // = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 float i_filter[NUM_I_SENSORS][FILTER_NUM]; // = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 float va_filter[NUM_I_SENSORS][FILTER_NUM]; // = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
@@ -53,7 +56,9 @@ float v_filtered;
 float i_filtered[NUM_I_SENSORS], va_filtered[NUM_I_SENSORS], w_filtered[NUM_I_SENSORS], pf_filtered[NUM_I_SENSORS];
 
 float v_measured, i_measured[NUM_I_SENSORS], va_measured[NUM_I_SENSORS], w_measured[NUM_I_SENSORS], pf_measured[NUM_I_SENSORS];
-
+double accumulator_vah[NUM_I_SENSORS] = { 0.0, 0.0, 0.0 };
+double accumulator_wh[NUM_I_SENSORS]  = { 0.0, 0.0, 0.0 };
+uint8_t accumulator_count = 0;
 
 //inline int16_t MAX(int16_t a, int16_t b) { return((a) > (b) ? a : b); }
 //inline int16_t MIN(int16_t a, int16_t b) { return((a) < (b) ? a : b); }
@@ -437,8 +442,8 @@ int calc_measurements(void) {
 	if (sample_buf_meta[ADC_CH_I1].value_is_zero) {	// set all measured values to zero
 		i_measured[I1] = 0.0; va_measured[I1] = 0.0;w_measured[I1] = 0.0;
 	} else {
-		//term_print("%s() - I1 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I1], sample_buf_meta[ADC_CH_I1].min, sample_buf_meta[ADC_CH_I1].max);
 		i_measured[I1] = calc_adc_raw_to_A (sqrt((i1_sq_acc / num_readings)));	// RMS current
+		//term_print("%s() - I1 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I1], sample_buf_meta[ADC_CH_I1].min, sample_buf_meta[ADC_CH_I1].max);
 		if (i_measured[I1] >= I1_MIN) {		// Reading above min current?
 			if (i1_va_acc > 0) { va = i1_va_acc / num_readings; }
 			if (i1_w_acc > 0) { w = i1_w_acc / num_readings; }
@@ -458,8 +463,8 @@ int calc_measurements(void) {
 	if (sample_buf_meta[ADC_CH_I2].value_is_zero) {	// set all measured values to zero
 		i_measured[I2] = 0.0;va_measured[I2] = 0.0; w_measured[I2] = 0.0;
 	} else {
-		//term_print("%s() - I2 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I2], sample_buf_meta[ADC_CH_I2].min, sample_buf_meta[ADC_CH_I2].max);
 		i_measured[I2] = calc_adc_raw_to_A (sqrt((i2_sq_acc / num_readings)));	// RMS current
+		//term_print("%s() - I2 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I2], sample_buf_meta[ADC_CH_I2].min, sample_buf_meta[ADC_CH_I2].max);
 		if (i_measured[I2] >= I2_MIN) {		// Reading above min current?
 			if (i2_va_acc > 0) { va = i2_va_acc / num_readings; }
 			if (i2_w_acc > 0) { w = i2_w_acc / num_readings; }
@@ -479,8 +484,8 @@ int calc_measurements(void) {
 	if (sample_buf_meta[ADC_CH_I3].value_is_zero) {	// set all measured values to zero
 		i_measured[I3] = 0.0; va_measured[I3] = 0.0; w_measured[I3] = 0.0;
 	} else {
-		//term_print("%s() - I3 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I3], sample_buf_meta[ADC_CH_I3].min, sample_buf_meta[ADC_CH_I3].max);
 		i_measured[I3] = calc_adc_raw_to_A (sqrt((i3_sq_acc / num_readings)));	// RMS current
+		//term_print("%s() - I3 = %f (%d-%d)\r\n", __FUNCTION__, i_measured[I3], sample_buf_meta[ADC_CH_I3].min, sample_buf_meta[ADC_CH_I3].max);
 		if (i_measured[I3] >= I3_MIN) {		// Reading above min current?
 			if (i3_va_acc > 0) { va = i3_va_acc / num_readings; }
 			if (i3_w_acc > 0) { w = i3_w_acc / num_readings; }
@@ -504,6 +509,30 @@ int calc_measurements(void) {
 	//calc_assign_meter_values(display_channel);
 
 	return 0;
+}
+
+/*
+ * @brief    Update the energy totals with the latest readings. Must be called every 100ms.
+ */
+void calc_update_energy_totals() {
+	double divisor = (double)36000.0;		// 3600000 / 100 to convert W to Wh per 100ms
+
+	for (int i=0; i<NUM_I_SENSORS; i++) {
+		accumulator_vah[i] += (double)va_filtered[i] / divisor;
+		accumulator_wh[i] += (double)w_filtered[i] / divisor;
+	}
+	accumulator_count++;
+	if (accumulator_count >= 10) {		// once a second
+		for (int i=0; i<NUM_I_SENSORS; i++) {
+			total_vah[i] += (uint32_t) round(accumulator_vah[i] * 10.0);
+			total_wh[i] += (uint32_t) round(accumulator_wh[i] * 10.0);
+			accumulator_vah[i] = 0.0;
+			accumulator_wh[i] = 0.0;
+
+		}
+		accumulator_count = 0;
+	}
+
 }
 
 /*

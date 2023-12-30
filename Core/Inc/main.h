@@ -60,6 +60,7 @@ extern "C" {
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
+int energy_totals_init(uint8_t reset);
 
 /* USER CODE BEGIN EFP */
 
@@ -102,6 +103,8 @@ void Error_Handler(void);
 #define TOUCH_IRQ_Pin GPIO_PIN_4
 #define TOUCH_IRQ_GPIO_Port GPIOB
 #define TOUCH_IRQ_EXTI_IRQn EXTI4_IRQn
+#define CLK_TUNE_Pin GPIO_PIN_5
+#define CLK_TUNE_GPIO_Port GPIOB
 #define DISPL_RST_Pin GPIO_PIN_6
 #define DISPL_RST_GPIO_Port GPIOB
 #define ESP01_RST_Pin GPIO_PIN_7

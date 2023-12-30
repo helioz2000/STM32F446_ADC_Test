@@ -27,7 +27,9 @@
 #include "cmd.h"
 #include "calc.h"
 #include "ee24.h"
+#ifdef USE_WIFI
 #include "wifi.h"
+#endif
 #ifdef USE_DISPLAY
 #include "display.h"
 #endif
@@ -61,6 +63,7 @@ SPI_HandleTypeDef hspi2;
 DMA_HandleTypeDef hdma_spi2_tx;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
@@ -86,20 +89,27 @@ extern uint8_t esp_rx_buf[];
 __IO uint8_t esp_rx_byte;
 uint16_t esp_rx_count_last = 0;
 
+uint8_t modbus_address = 0;
+
 // EEPROM
-__IO uint8_t eeprom_buf[16];
+#define EEPROM_BUF_SIZE 32
+__IO uint8_t eeprom_buf[EEPROM_BUF_SIZE];
 extern uint8_t ee24_lock;
+extern HAL_StatusTypeDef ee24_result;
+extern uint32_t ee24_ErrorCode;
 bool ee24_read_done = false;
+bool ee24_is_present = false;
 
 __IO uint8_t display_activate = 0;	// screen saver off
 __IO uint8_t display_change = 0;		// change active screen
-
 __IO uint8_t touch_action = 0;
 
 uint8_t adc_restart = 0;
 uint8_t tft_display = 0;
 uint8_t esp_mode = 0;
+uint8_t modbus_addr_change = 0;
 uint16_t new_time_period = 0;
+uint16_t new_energy_time_period = 0;
 uint8_t display_screen = 0;		// 0 = splash, 1 = main
 
 __IO int32_t adc1_dma_l_count = 0;
@@ -118,6 +128,12 @@ uint32_t display_update_ticks;
 uint32_t now_ticks, last_ticks;
 uint32_t next_measurement_time;
 uint32_t next_process_time;
+
+// Storage for Energy totals, one per channel.
+// Format: 1/10 VAh/Wh (one implied decimal point)
+uint32_t total_vah[3];
+uint32_t total_wh[3];
+
 #ifdef DEBUG
 uint32_t measure_ticks, calc_ticks, display_ticks;	// execution time measurement
 #endif
@@ -143,6 +159,7 @@ static void MX_ADC2_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -169,30 +186,131 @@ void start_adcs() {
  * board to produce 25us signal which is shown on the oscilloscope
  * as a 20kHz square wave (period 50us) as the signal changes
  * with every TIM2 call
+ * @para newPeriod  New timer value, must be between 2000 and 2500
+ * @para store      1 to store value in eeprom
+ * @retval          -1 on failure, 0 on success
  */
-void adjust_TIM2_period(uint16_t newPeriod, uint8_t store) {
+int adjust_TIM2_period(uint16_t newPeriod, uint8_t store) {
 	if ( (newPeriod > 2500) || (newPeriod < 2000) ) {
-		term_print("Invalid period for TIM (%u)\r\n", newPeriod);
-		return;
+		term_print("Invalid period for TIM2 (%u)\r\n", newPeriod);
+		return -1;
 	}
 	TIM2->ARR = (uint32_t) newPeriod;	// change register directly
-	term_print("TIM2 ARR = %u\r\n", newPeriod);
-	/*
+	term_print("TIM2 ARR %u\r\n", newPeriod);
+
 	if (store) {
-		// Store new value in Flash memory
-		HAL_FLASH_Unlock();
-		HAL_StatusTypeDef result = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, EEPROM_USER_START_ADDR, (uint64_t)newPeriod);
-		HAL_FLASH_Lock();
-		er = HAL_FLASH_GetError();
-		if (er !=0) {
-			term_print("Flash Error Code: %Xu\r\n", er);
-		}
-		if (result != HAL_OK) {
-			term_print("EEPROM write failed\r\n");
+		// Store new value in EEPROM memory
+		eeprom_buf[0] = (newPeriod & 0xFF00) >> 8;	// High byte
+		eeprom_buf[1] = newPeriod & 0xFF;			// Low byte
+		if (ee24_write_word(EEPROM_ADDR_TIM2ARR,(uint16_t *) &eeprom_buf) != true ) {
+			term_print("%s() - Error: EEPROM write failed\r\n", __FUNCTION__);
+			return -1;
 		} else {
-			term_print("EEPROM write %u\r\n", newPeriod);
+			term_print("TIM2 ARR %u saved to EEPROM\r\n", newPeriod);
 		}
-	}*/
+	}
+	return 0;
+}
+
+int adjust_TIM3_period(uint16_t newPeriod, uint8_t store) {
+	if ( (newPeriod > 1500) || (newPeriod < 500) ) {
+		term_print("Invalid period for TIM3 (%u)\r\n", newPeriod);
+		return -1;
+	}
+	TIM3->ARR = (uint32_t) newPeriod;	// change register directly
+	term_print("TIM3 ARR %u\r\n", TIM3->ARR);
+
+	if (store) {
+		// Store new value in EEPROM memory
+		eeprom_buf[0] = (newPeriod & 0xFF00) >> 8;	// High byte
+		eeprom_buf[1] = newPeriod & 0xFF;			// Low byte
+		if (ee24_write_word(EEPROM_ADDR_TIM3ARR,(uint16_t *) &eeprom_buf) != true ) {
+			term_print("%s() - Error: EEPROM write failed\r\n", __FUNCTION__);
+			return -1;
+		} else {
+			term_print("TIM3 ARR %u saved to EEPROM\r\n", newPeriod);
+		}
+	}
+	return 0;
+}
+
+
+int set_modbus_address(uint8_t newAddress, uint8_t store) {
+	if ((newAddress > 254) || (newAddress < 2)) {
+		term_print("Invalid Modbus Address (%d)\r\n", newAddress);
+		return -1;
+	}
+	modbus_address = newAddress;
+	term_print("Modbus %d\r\n",modbus_address);
+	if (store) {
+		// Store new value in EEPROM memory
+		eeprom_buf[0] = newAddress;
+		if (ee24_write_byte(EEPROM_ADDR_MODBUSADDR, (uint8_t*) &eeprom_buf) != true ) {
+			term_print("%s() - Error: EEPROM write failed\r\n", __FUNCTION__);
+			return -1;
+		} else {
+			term_print("Modbus Address %d saved to EEPROM\r\n", newAddress);
+		}
+	}
+	return 0;
+}
+
+/*
+ * @brief        Initialise energy totals from eeprom
+ * @para reset   1 = reset energy values to zero and write to eeprom
+ * @retval       0 on success, -1 on failure
+ */
+int energy_totals_init(uint8_t reset) {
+	int i;
+
+	// read VAh from eeprom
+	if ( ee24_read(EEPROM_ADDR_VAH, (uint8_t*) &eeprom_buf, 12, 100) != true ) {
+		return -1;
+	}
+
+	// check if we have a blank eeprom (all bytes 0xFF)
+	for (i=0; i<12; i++){
+		if (eeprom_buf[i] != 0xFF) break;	// abort loop if we have valid entry
+	}
+	if ((i >= 12) || (reset) ) {		// if all bytes were 0xFF (blank eeprom) or reset request
+		term_print("Init EEPROM with energy totals\r\n");
+		for (i=0; i<12; i++) {		// fill eeprom buffer with zero values
+			eeprom_buf[i] = 0;
+		}
+		HAL_Delay(EEPROM_DELAY);
+		if (ee24_write(EEPROM_ADDR_VAH, (uint8_t*) &eeprom_buf, 12, 100) != true ) {
+			term_print("%s() - Error: EEPROM init VAh failed\r\n", __FUNCTION__);
+			return -1;
+		}
+		HAL_Delay(EEPROM_DELAY);
+		if (ee24_write(EEPROM_ADDR_WH, (uint8_t*) &eeprom_buf, 12, 100) != true ) {
+			term_print("%s() - Error: EEPROM init Wh failed\r\n", __FUNCTION__);
+			return -1;
+		}
+	}
+
+	//term_print_hex((uint8_t*) &eeprom_buf, 12, 0);
+	// move values into variables
+	memcpy(&total_vah[0], (uint8_t*) &eeprom_buf, 12);
+
+	// read Wh from eeprom
+	HAL_Delay(EEPROM_DELAY);
+	if (ee24_read(EEPROM_ADDR_WH, (uint8_t*) &eeprom_buf, 12, 100) == true) {
+		//term_print_hex((uint8_t*) &eeprom_buf, 12, 0);
+		memcpy(&total_wh[0], (uint8_t*) &eeprom_buf, 12);
+	}
+	return 0;
+}
+
+/*
+ * @brief    Write energy totals to eeprom
+ */
+void energy_totals_save() {
+	memcpy((uint8_t*) &eeprom_buf, &total_vah[0], 12);
+	ee24_write(EEPROM_ADDR_VAH, (uint8_t*) &eeprom_buf, 12, 100);
+	HAL_Delay(EEPROM_DELAY);
+	memcpy((uint8_t*) &eeprom_buf, &total_wh[0], 12);
+	ee24_write(EEPROM_ADDR_WH, (uint8_t*) &eeprom_buf, 12, 100);
 }
 
 /*
@@ -202,7 +320,65 @@ void version_change(uint8_t old_major, uint8_t old_minor) {
 	// update version number in EEPROM
 	eeprom_buf[0] = VERSION_MAJOR; eeprom_buf[1] = VERSION_MINOR;
 	if (ee24_write_word(EEPROM_ADDR_VERSION,(uint16_t *) &eeprom_buf) != true ) {
-		term_print("Error: EEPROM write failed\r\n");
+		term_print("%s() - Error: EEPROM write failed\r\n", __FUNCTION__);
+	}
+}
+
+void eeprom() {
+	if (!ee24_isConnected()) {
+		  term_print("%s() - Error: EEPROM not found\r\n", __FUNCTION__);
+	  } else {
+		  if (ee24_read_word(EEPROM_ADDR_VERSION, (uint16_t *) &eeprom_buf) != true) {
+			  term_print("Error: EEPROM read error\r\n");
+		  } else {
+			ee24_is_present = true;
+			//term_print("\r\nEEPROM:\r\nV%d.%02d\r\n", eeprom_buf[0], eeprom_buf[1]);
+			if ((eeprom_buf[0] == 0xFF) && (eeprom_buf[1] == 0xFF)) {		// new/blank EEPROM
+				eeprom_buf[0] = VERSION_MAJOR; eeprom_buf[1] = VERSION_MINOR;
+				term_print("Updating Version in EEPROM\r\n", __FUNCTION__);
+				if (ee24_write_word(EEPROM_ADDR_VERSION,(uint16_t *) &eeprom_buf) != true ) {
+					term_print("%s() - Error: EEPROM write failed\r\n", __FUNCTION__);
+				}
+			}
+			// Detect version change
+			if ((eeprom_buf[0]!=VERSION_MAJOR) || (eeprom_buf[0]!=VERSION_MINOR)) {
+				version_change(eeprom_buf[0], eeprom_buf[1]);
+			}
+
+			// Read TIM2 ARR value
+			HAL_Delay(EEPROM_DELAY);		// Minimum delay between EEPROM access
+			if (ee24_read_word(EEPROM_ADDR_TIM2ARR, (uint16_t *) &eeprom_buf) == true) {
+				uint16_t value = eeprom_buf[0]*256 + eeprom_buf[1];
+				if (adjust_TIM2_period(value, 0) < 0) {		// adjust timer value, don't store
+					term_print("%s() - Unable to write %u to TIM2_ARR\r\n", __FUNCTION__, value);
+				}
+			} else {
+				term_print("%s() - EEPROM read error (ee24_ErrorCode = %u)\r\n", __FUNCTION__, ee24_ErrorCode);
+				term_print("TIM2 ARR %d\r\n",TIM2->ARR);
+			}
+
+			// Read TIM3 ARR value
+			HAL_Delay(EEPROM_DELAY);		// Minimum delay between EEPROM access
+			if (ee24_read_word(EEPROM_ADDR_TIM3ARR, (uint16_t *) &eeprom_buf) == true) {
+				uint16_t value = eeprom_buf[0]*256 + eeprom_buf[1];
+				if (adjust_TIM3_period(value, 0) < 0) {		// adjust timer value, don't store
+					term_print("%s() - Unable to write %u to TIM3_ARR\r\n", __FUNCTION__, value);
+				}
+			} else {
+				term_print("%s() - EEPROM read error (ee24_ErrorCode = %u)\r\n", __FUNCTION__, ee24_ErrorCode);
+				term_print("TIM3 ARR %d\r\n",TIM2->ARR);
+			}
+
+
+			HAL_Delay(EEPROM_DELAY);		// Minimum delay between EEPROM access
+			if (ee24_read_byte(EEPROM_ADDR_MODBUSADDR, (uint8_t*) &eeprom_buf) == true) {
+				//term_print("EEPROM Modbus: %d\r\n", eeprom_buf[0]);
+				set_modbus_address(eeprom_buf[0], 0);
+			}
+
+			HAL_Delay(EEPROM_DELAY);		// Minimum delay between EEPROM access
+			energy_totals_init(0);
+		}
 	}
 }
 
@@ -244,7 +420,10 @@ int main(void)
   MX_SPI2_Init();
   MX_USART3_UART_Init();
   MX_I2C1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+
+  eeprom();	// Load values from EEPROM
 
 #ifdef USE_DISPLAY
   // TFT Display
@@ -267,6 +446,11 @@ int main(void)
      Error_Handler();
   }
 
+  // Start Timer for Energy integration
+    if (HAL_TIM_Base_Start_IT(&htim3) != HAL_OK) {
+       Error_Handler();
+    }
+
   // Start ADCs
   start_adcs();
 
@@ -280,8 +464,6 @@ int main(void)
   if (HAL_UART_Transmit(&CLI_UART, (uint8_t*)msg_buf, strlen(msg_buf), 1000) != HAL_OK) {
 	  Error_Handler();
   }
-  // Show active TIM2 configuration (for 25us ADC trigger)
-  term_print("TIM2 ARR = %d\r\n",TIM2->ARR);
 
 #ifdef USE_WIFI
   // Enable ESP 01
@@ -297,30 +479,6 @@ int main(void)
   	  Error_Handler();
   }*/
 #endif
-
-  if (!ee24_isConnected()) {
-	  term_print("Error: EEPROM not found\r\n");
-  } else {
-	  if (ee24_read_word(EEPROM_ADDR_VERSION, (uint16_t *) &eeprom_buf) != true) {
-		  term_print("Error: EEPROM read error\r\n");
-	  } else {
-		term_print("EEPROM Version: V%d.%02d\r\n", eeprom_buf[0], eeprom_buf[1]);
-		if ((eeprom_buf[0] == 0xFF) && (eeprom_buf[1] == 0xFF)) {		// new/blank EEPROM
-			eeprom_buf[0] = VERSION_MAJOR; eeprom_buf[1] = VERSION_MINOR;
-			if (ee24_write_word(EEPROM_ADDR_VERSION,(uint16_t *) &eeprom_buf) != true ) {
-				term_print("Error: EEPROM write failed\r\n");
-			}
-		}
-		// Detect version change
-		if ((eeprom_buf[0]!=VERSION_MAJOR) || (eeprom_buf[0]!=VERSION_MINOR)) {
-			version_change(eeprom_buf[0], eeprom_buf[1]);
-		}
-	  }
-  }
-  /*
-  eeprom_buf[0] = 0x33;
-  ee24_write_byte(0x01, (uint8_t *) eeprom_buf);
-*/
 
   /* USER CODE END 2 */
 
@@ -434,14 +592,24 @@ int main(void)
 #endif		// USE_WIFI
 
 		if (adc_restart) {
-		  adc_restart = 0;
-		  start_adcs();
+			adc_restart = 0;
+			start_adcs();
 		}
 
 		if (new_time_period) {
-		  // change timer period to new value
-		  adjust_TIM2_period(new_time_period, 1);
-		  new_time_period = 0;
+			// change timer period to new value
+			adjust_TIM2_period(new_time_period, 1);
+			new_time_period = 0;
+		}
+
+		if (new_energy_time_period) {
+			adjust_TIM3_period(new_energy_time_period, 1);
+			new_energy_time_period = 0;
+		}
+
+		if (modbus_addr_change) {
+			set_modbus_address(modbus_addr_change, 1);
+			modbus_addr_change = 0;
 		}
 
 #ifdef USE_DISPLAY
@@ -458,8 +626,8 @@ int main(void)
 		// display timeout
 		if (display_off_ticks && (now_ticks >= display_off_ticks)) {
 			Displ_BackLight('0');
-	  		display_off_ticks = 0;
-	  	}
+			display_off_ticks = 0;
+		}
 
 		if (tft_display) {
 			if (tft_display == 9) {
@@ -502,18 +670,18 @@ int main(void)
 			}
 		}
 
-#endif
+#endif		// USE_DISPLAY
 
-		}
+	}	// slow processing loop
 
 		// Check if we have missed processing DMA data sets
-		// This occurs if the main loop execution takes longer than 20ms (e.g. terminal output of lots of data)
+		// This occurs if the main loop execution takes longer than 20ms (e.g. serial terminal output or display)
 		if ( (adc1_dma_l_count > 1) || (adc1_dma_h_count > 1) || (adc2_dma_l_count > 1) || (adc2_dma_h_count > 1)) {
 			//term_print("Processing has missed data - %lu %lu %lu %lu\r\n", adc1_dma_l_count, adc1_dma_h_count, adc2_dma_l_count, adc2_dma_h_count);
-			if (adc1_dma_l_count > 1) { adc1_dma_l_count = 1; }
-			if (adc1_dma_h_count > 1) { adc1_dma_h_count = 1; }
-			if (adc2_dma_l_count > 1) { adc2_dma_l_count = 1; }
-			if (adc2_dma_h_count > 1) { adc2_dma_h_count = 1; }
+			if (adc1_dma_l_count > 1) adc1_dma_l_count = 1;
+			if (adc1_dma_h_count > 1) adc1_dma_h_count = 1;
+			if (adc2_dma_l_count > 1) adc2_dma_l_count = 1;
+			if (adc2_dma_h_count > 1) adc2_dma_h_count = 1;
 		}
 
 		// Process DMA buffers
@@ -531,13 +699,13 @@ int main(void)
 		}
 		if (adc2_dma_l_count > 0) {
 			if (calc_process_dma_buffer(0,ADC2_IDX) != 0) {
-			term_print("Processing ADC2 DMA 1st half failed\r\n");
+				term_print("Processing ADC2 DMA 1st half failed\r\n");
 			}
 			adc2_dma_l_count--;
 		}
 		if (adc2_dma_h_count > 0) {
 			if (calc_process_dma_buffer(1,ADC2_IDX) != 0) {
-			term_print("Processing ADC2 DMA 2nd half failed\r\n");
+				term_print("Processing ADC2 DMA 2nd half failed\r\n");
 			}
 			adc2_dma_h_count--;
 		}
@@ -814,7 +982,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 2286;
+  htim2.Init.Period = 2250;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -835,6 +1003,51 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 9000;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 1000;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -955,7 +1168,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(TOUCH_CS_GPIO_Port, TOUCH_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, DISPL_RST_Pin|ESP01_RST_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, CLK_TUNE_Pin|DISPL_RST_Pin|ESP01_RST_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -997,6 +1210,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(TOUCH_IRQ_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : CLK_TUNE_Pin */
+  GPIO_InitStruct.Pin = CLK_TUNE_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(CLK_TUNE_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : DISPL_RST_Pin ESP01_RST_Pin */
   GPIO_InitStruct.Pin = DISPL_RST_Pin|ESP01_RST_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -1017,15 +1237,20 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+void HAL_TIM_PeriodElapsedCallback (TIM_HandleTypeDef * htim) {
+	if (htim == &htim3) {
+		HAL_GPIO_TogglePin (CLK_TUNE_GPIO_Port, CLK_TUNE_Pin);
+		calc_update_energy_totals();
+	}
+}
+
 void HAL_I2C_MemTxCpltCallback(I2C_HandleTypeDef *hi2c) {
 	ee24_lock = 0;
-//	my_printf("HAL_I2C_MemTxCpltCallback");
 
 }
 void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
 	ee24_lock = 0;
 	ee24_read_done = true;
-//	my_printf("HAL_I2C_MemRxCpltCallback");
 }
 
 // External GPIO Interrupt
