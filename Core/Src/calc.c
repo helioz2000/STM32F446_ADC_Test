@@ -58,9 +58,10 @@ float v_filtered;
 float i_filtered[NUM_I_SENSORS], va_filtered[NUM_I_SENSORS], w_filtered[NUM_I_SENSORS], pf_filtered[NUM_I_SENSORS];
 
 float v_measured, i_measured[NUM_I_SENSORS], va_measured[NUM_I_SENSORS], w_measured[NUM_I_SENSORS], pf_measured[NUM_I_SENSORS];
-double accumulator_vah[NUM_I_SENSORS] = { 0.0, 0.0, 0.0 };
-double accumulator_wh[NUM_I_SENSORS]  = { 0.0, 0.0, 0.0 };
-uint8_t accumulator_count = 0;
+__IO double accumulator_vah[NUM_I_SENSORS] = { 0.0, 0.0, 0.0 };
+__IO double accumulator_wh[NUM_I_SENSORS]  = { 0.0, 0.0, 0.0 };
+__IO uint8_t accumulator_count = 0;
+#define ENERGY_ACC_MAX 50			// * 100ms integrations before energy readings are updated. Must divide into 36000
 
 /*
  * @brief   Process the DMA buffer and perform down-sample
@@ -510,29 +511,41 @@ int calc_measurements(void) {
 }
 
 /*
- * @brief    Update the energy totals with the latest readings. To be called every 100ms.
+ * @brief    Integrate energy totals with the latest readings. To be called every 100ms via INT.
+ * @retval   0 or accumulator count if target has been reached
  */
-void calc_update_energy_totals() {
-	const uint8_t acc_max = 50;		// * 100ms, must divide into 36000
-	const double divisor = 36000.0 / (double) acc_max;		// accumulator totals per hour
+uint8_t calc_integrate_energy_totals() {
+	uint8_t retval = 0;
 
-	for (int i=0; i<NUM_I_SENSORS; i++) {	// every 100ms
+	for (int i=0; i<NUM_I_SENSORS; i++) 	// every 100ms
+	{
 		accumulator_vah[i] += (double)va_filtered[i];
 		accumulator_wh[i] += (double)w_filtered[i];
 	}
 	accumulator_count++;
-	if (accumulator_count >= acc_max) {		// once a second
-		for (int i=0; i<NUM_I_SENSORS; i++) {
-			// update precision values
-			total_precision_vah[i] += accumulator_vah[i] / (double)accumulator_count / divisor;
-			total_precision_wh[i] += accumulator_wh[i] / (double)accumulator_count / divisor;
-			accumulator_vah[i] = 0.0;
-			accumulator_wh[i] = 0.0;
-			// update integer values
-			total_vah[i] = round(total_precision_vah[i] * 10);
-			total_wh[i] = round(total_precision_wh[i] * 10);
-		}
+	if (accumulator_count >= ENERGY_ACC_MAX) {		// once a second
+		retval = accumulator_count;
 		accumulator_count = 0;
+	}
+	return retval;
+}
+
+/*
+ * @brief           Update energy totals. To be called every time the integration accumulator has reached it's target
+ * @para acc_count  Number of values accumulated in accumulator_vah/wh
+ */
+void calc_update_energy_totals(uint8_t acc_count) {
+	const double divisor = 36000.0 / (double) ENERGY_ACC_MAX;		// accumulator totals per hour
+	for (int i=0; i<NUM_I_SENSORS; i++)
+	{
+		// update precision values
+		total_precision_vah[i] += accumulator_vah[i] / (double)acc_count / divisor;
+		total_precision_wh[i] += accumulator_wh[i] / (double)acc_count / divisor;
+		accumulator_vah[i] = 0.0;
+		accumulator_wh[i] = 0.0;
+		// update integer values
+		total_vah[i] = round(total_precision_vah[i] * 10);
+		total_wh[i] = round(total_precision_wh[i] * 10);
 	}
 }
 

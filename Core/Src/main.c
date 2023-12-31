@@ -75,6 +75,9 @@ char msg_buf[256];
 char prt_buf[1024];
 uint8_t sample_buf_lock = 0xFF;	// lock sample buffer to prevent override
 
+extern uint8_t meter_readings_invalid;
+uint8_t meter_readings_invalid_shadow = 0;
+
 // Command Line Interface
 __IO uint16_t cli_rx_count = 0;
 __IO uint8_t cli_rx_byte;
@@ -136,6 +139,7 @@ double total_precision_wh[3];
 // For EEPROM storage, format: 1/10 VAh/Wh (one implied decimal point)
 uint32_t total_vah[3];
 uint32_t total_wh[3];
+__IO uint8_t energy_total_acc_count = 0;
 
 
 #ifdef DEBUG
@@ -307,8 +311,8 @@ int energy_totals_init(uint8_t reset) {
 
 	// initialise precision values
 	for (i=0; i<3; i++) {
-		total_precision_vah[i] = (double) total_vah[i];
-		total_precision_wh[i] = (double) total_wh[i];
+		total_precision_vah[i] = (double) total_vah[i] / (double)10.0;
+		total_precision_wh[i] = (double) total_wh[i] / (double)10.0;
 	}
 	return 0;
 }
@@ -391,6 +395,13 @@ void eeprom() {
 			energy_totals_init(0);
 		}
 	}
+}
+
+void low_voltage_detected() {
+	// switch off LED backlight to preserve power
+	HAL_GPIO_WritePin(DISPL_LED_GPIO_Port, DISPL_LED_Pin, GPIO_PIN_RESET);
+	energy_totals_save();
+	term_print("Low Voltage detected\r\n");
 }
 
 /* USER CODE END 0 */
@@ -520,6 +531,10 @@ int main(void)
 		measure_ticks = HAL_GetTick();
 #endif
 		calc_measurements();
+		if ((meter_readings_invalid) && (meter_readings_invalid_shadow == 0)) {
+			low_voltage_detected();
+			meter_readings_invalid_shadow = meter_readings_invalid;
+		}
 #ifdef DEBUG
 		calc_ticks = HAL_GetTick() - measure_ticks;		// calculation execution time
 #endif
@@ -548,7 +563,7 @@ int main(void)
 				display_splash_ticks = 0;
 #ifdef USE_DISPLAY
 				//display_meter_mask();
-				display_screen = 1;		// set to main screen
+				display_screen = 4;		// set to main screen
 				display_off_ticks = now_ticks + DISPLAY_TIMEOUT;
 #endif
 			}
@@ -719,6 +734,12 @@ int main(void)
 				term_print("Processing ADC2 DMA 2nd half failed\r\n");
 			}
 			adc2_dma_h_count--;
+		}
+
+		// Update energy totals from accumulated values
+		if (energy_total_acc_count > 0) {
+			calc_update_energy_totals(energy_total_acc_count);
+			energy_total_acc_count = 0;
 		}
 	}
   /* USER CODE END 3 */
@@ -1248,10 +1269,18 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+/*
+ * @brief   Timer elapsed interrupt callback
+ */
 void HAL_TIM_PeriodElapsedCallback (TIM_HandleTypeDef * htim) {
-	if (htim == &htim3) {
+	if (htim == &htim2) {
+		// Tuning (oscilloscope) indicator for ADC trigger, changes every 25us
+		HAL_GPIO_TogglePin (DEBUG_GPIO_Port, DEBUG_Pin);
+	} else if (htim == &htim3) {
+		// Tuning (oscilloscope) indicator for energy calc, changes every 100ms
 		HAL_GPIO_TogglePin (CLK_TUNE_GPIO_Port, CLK_TUNE_Pin);
-		calc_update_energy_totals();
+		// Integrate energy totals
+		energy_total_acc_count = calc_integrate_energy_totals();
 	}
 }
 
